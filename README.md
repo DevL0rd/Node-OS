@@ -2,8 +2,9 @@
 A extremely feature packed Computer Craft OS with smart homes/bases, hive minds, and robot swarms in mind.
 While everything is working so far, I still plan to make a better UI.
 
-More Details later on usage.
 
+
+More Details later on usage, I don't have the time at the moment sadly.
 
 ## Features:
 Probably will forget alot here. I have worked on this for a while before saving this on github.
