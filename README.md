@@ -1,8 +1,7 @@
 # Node-OS
-A extremely feature packed Computer Craft OS with smart homes/bases, hive minds, and robot swarms in mind.
+A feature packed ComputerCraft OS with smart homes/bases, hive minds, and robot swarms in mind.
 While everything is working so far, I still plan to make a better UI.
-
-
+Screenshots soon.
 
 More Details later on usage, I don't have the time at the moment sadly.
 
