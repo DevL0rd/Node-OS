@@ -36,6 +36,7 @@ Probably will forget alot here. I have worked on this for a while before saving 
   * Remote Display to other computers monitors to show screens to friends.
   * (WIP) Slave Bots. Auto gathering/mining robots, 3d printer swarms, delivery/fetch drones, or do anything for you. got somewhere, upload a virus, blow up the base and escape! with simple command syntax.
 
+
 ## Mod Support:
   * SG-Craft
     * Dial, save, and share Stargate destinations between users.
@@ -49,6 +50,7 @@ Probably will forget alot here. I have worked on this for a while before saving 
     * AR Glasses display NodeOs hud, and Navigation. (More helpful overlay data comming soon.)
     * Sensors when conencted will seemelesly stream entity data to the nodeOs networks hive map data.
     * Scanners when connected will additionally stream block data, 8 blocks, in all directions, to the hive map data.
+    * If using the kinetic augment you can use a command to take control of your body to run to a destination location, resource, player.
     * (WIP) Remote control other players or mobs using node os, or make a auto defence system to take over your body when in danger.
 
   * Web Displays (Broken on latest)
