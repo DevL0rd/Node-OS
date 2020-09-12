@@ -161,7 +161,7 @@
     char = "@",
   },
   [ "minecraft:coal_ore" ] = {
-    fgColor = "orange",
+    fgColor = "black",
     bgColor = "lightGray",
     char = "C",
   },
@@ -178,7 +178,7 @@
   [ "pixelmon:ruby_ore" ] = {
     fgColor = "red",
     bgColor = "lightGray",
-    char = "R",
+    char = "r",
   },
   [ "biomesoplenty:grass" ] = {
     fgColor = "lime",
@@ -432,6 +432,8 @@
     bgColor = "white",
   },
   [ "minecraft:glowstone" ] = {
+    fgColor = "yellow",
+    bgColor = "orange",
     char = "i",
   },
   [ "minecraft:red_flower" ] = {
@@ -440,6 +442,8 @@
     char = "@",
   },
   [ "minecraft:iron_ore" ] = {
+    fgColor = "white",
+    bgColor = "lightGray",
     char = "I",
   },
   [ "minecraft:wool" ] = {
@@ -695,9 +699,9 @@
     bgColor = "lime",
   },
   [ "minecraft:stone" ] = {
-    fgColor = "lime",
+    fgColor = "lightGray",
     char = " ",
-    bgColor = "lime",
+    bgColor = "lightGray",
   },
   [ "pixelmon:tree" ] = {
     fgColor = "lime",
@@ -785,8 +789,8 @@
     bgColor = "brown",
   },
   [ "minecraft:lapis_ore" ] = {
-    fgColor = "blue",
-    char = " ",
+    fgColor = "white",
+    char = "L",
     bgColor = "blue",
   },
   [ "pixelmon:blue_rug" ] = {

@@ -13,24 +13,31 @@ if not fs.exists(tileGraphicsPath) then
 else
     tileGraphics = load(tileGraphicsPath)
 end
+
+mapVer = 0
+if fs.exists("settings/mapVer.txt") then
+    local file = fs.open("settings/mapVer.txt","r")
+    mapVer = file.readAll()
+    file.close()
+end
+
 function map_checkForUpdate()
-    fetchFile(settings.NodeOSMasterID, "Map/ver.txt", "settings/mapVer.txt", true)
-        if fs.exists("settings/mapVer.txt") then
-            local file = fs.open("settings/mapVer.txt","r")
-            local nVer = file.readAll()
-            file.close()
-            if nVer ~= ver then
-                return true
-            else
-                return false
-            end
+    nVer = fetchFile(settings.NodeOSMasterID, "Map/mapVer.txt", "settings/mapVer.txt", true)
+    if nVer then
+        if nVer ~= mapVer then
+            return true
+        else
+            return false
         end
+    end
+end
+function tileGraphicsUpdate()
+    fetchFile(settings.NodeOSMasterID, "Map/tileGraphics.dat", "settings/tileGraphics.dat", true)
 end
 function map_update() 
     newLine()        
     nPrint("Updating Map...", "gray")
     fetchFile(settings.NodeOSMasterID, "Map/map.lua", "map.lua", true)
-    fetchFile(settings.NodeOSMasterID, "Map/tileGraphics.dat", "settings/tileGraphics.dat", true)
     newLine()
     nPrint("Map update complete!", "green")
     os.sleep(1)
@@ -126,6 +133,7 @@ function renderMap(x, y)
     y = y - math.ceil(renderHeight / 2)
     local rx = 1
     local ry = localOffset
+    local gpsPos = getPosition()
     while ry < renderHeight do
         while rx < renderWidth + 1 do
             local cX = rx + x - 2
@@ -210,14 +218,16 @@ function generateComputerTiles()
             if details.pos then
                 local posX = math.floor(details.pos.x)
                 local posY = math.floor(details.pos.z) -- Y axis on screen is world's z axis because of top down view
-                if not computerTiles[posX] then
-                    computerTiles[posX] = {}
-                end
+                if posX and posY then
+                    if not computerTiles[posX] then
+                        computerTiles[posX] = {}
+                    end
                     local mColor = "orange"
                     if pairedPCs[id] then
                         mColor = "lime"
                     end
                     computerTiles[posX][posY] = {char = "C", color = mColor, name = details.name}
+                end
             end
         end
 end
@@ -226,6 +236,7 @@ function liveMapThread()
         if not inputingColor then
             generateComputerTiles()
             generateMovingTiles()
+            local gpsPos = getPosition()
             if gpsPos then
                 local posX = math.floor(gpsPos.x)
                 local posY = math.floor(gpsPos.z) -- Y axis on screen is world's z axis because of top down view
@@ -251,7 +262,6 @@ function inputThread()
         local event, param = os.pullEvent()
         if not inputingColor then
             if event == "key" and param == 17 then -- W
-
             elseif event == "key" and param == 30 then -- A
             elseif event == "key" and param == 31 then -- S
             elseif event == "key" and param == 32 then -- D
@@ -265,7 +275,7 @@ end
 function worldTilesUpdateThread()
     while true do
         getWorldTiles()
-        sleep(10)
+        sleep(2)
     end
 end
 if map_checkForUpdate() then

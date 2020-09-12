@@ -7,34 +7,40 @@
     },
     actuationRange = 10,
     pollRate = 0.2,
-    rangeunlock = false,
     rangelock = false,
+    rangeunlock = false,
   },
   console = {
     seperatorfg = "lightGray",
     fg = "lightGray",
     seperatorbg = "black",
-    header = {
-      bg = "gray",
-      fg = "blue",
-    },
-    bg = "black",
     statusBar = {
       bg = "blue",
       fg = "white",
     },
+    bg = "black",
+    header = {
+      bg = "gray",
+      fg = "blue",
+    },
   },
   startupScripts = {},
   OU = "",
-  name = "Master",
-  password = "9872",
+  audio = {
+    actuationSound = true,
+    volume = 1,
+  },
+  network = {
+    retrys = 10,
+    pollRate = 0.1,
+  },
   peripherals = {
     pollRate = 1,
   },
-  message = "Master Computer",
+  message = "Eyyyyy!",
   startupProgram = "",
   isSetup = true,
-  NodeOSMasterID = 1,
+  NodeOSMasterID = 0,
   redstone = {
     ranged = false,
     side = "top",
@@ -42,13 +48,7 @@
     onLeaveRange = "off",
     state = false,
   },
-  network = {
-    timeout = 2,
-    pollRate = 0.1,
-  },
   pairPin = "9872",
-  audio = {
-    volume = 1,
-    actuationSound = true,
-  },
+  password = "9872",
+  name = "Master",
 }

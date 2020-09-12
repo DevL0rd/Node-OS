@@ -20,7 +20,7 @@ end
 --INITIALIZE--
 term.setCursorPos(1,1)
 term.clear()
-local monSide= nil
+monSide = nil
 monitor = nil
 inRangeClients = {}
 --Install to PC if inserted into disk drive.
@@ -85,7 +85,7 @@ if not fs.exists(settingsPath) then
         password = "",
         OU = "",
         pairPin = "0000",
-        NodeOSMasterID = 1,
+        NodeOSMasterID = 0,
         startupProgram = "",
         startupScripts = {},
         console = {
@@ -114,7 +114,7 @@ if not fs.exists(settingsPath) then
             rangelock = false
         },
         network = {
-            timeout = 2,
+            retrys = 10,
             pollRate = 0.1
         },
         peripherals = {
@@ -310,7 +310,6 @@ if not fs.exists(pairedClientsPath) then
 else
     pairedClients = load(pairedClientsPath)
 end
-closestID = nil
 netInUse = false
 NetResponseStack = {
     NodeOSNetResponse = {},
@@ -320,7 +319,7 @@ function sendCommand(cId, command, data, IgnoreResponse)
     local token = math.random(100000000,999999999)
     rednet.send(cId, {command=command, pin=pairedPCs[cId], responseToken = token, data=data}, "NodeOs-Command")
     if not IgnoreResponse then
-        local loopTimes = settings.network.timeout / settings.network.pollRate
+        local loopTimes = settings.network.retrys
         while true do
             if NetResponseStack["NodeOSCommandResponse"][token] then
                 local res = deepcopy(NetResponseStack["NodeOSCommandResponse"][token])
@@ -328,7 +327,7 @@ function sendCommand(cId, command, data, IgnoreResponse)
                 return res
             end
             loopTimes = loopTimes - 1
-            if loopTimes <= 0 then
+            if loopTimes == 0 then
                 return nil
             end
             sleep(settings.network.pollRate)
@@ -339,7 +338,7 @@ function sendNet(cId, command, data, IgnoreResponse)
     local token = math.random(100000000,999999999)
     rednet.send(cId, {command=command, pin=pairedPCs[cId], responseToken = token, data=data}, "NodeOs-Net")
     if not IgnoreResponse then
-        local loopTimes = settings.network.timeout / settings.network.pollRate
+        local loopTimes = settings.network.retrys
         while true do
             if NetResponseStack["NodeOSNetResponse"][token] then
                 local res = deepcopy(NetResponseStack["NodeOSNetResponse"][token])
@@ -347,7 +346,7 @@ function sendNet(cId, command, data, IgnoreResponse)
                 return res
             end
             loopTimes = loopTimes - 1
-            if loopTimes <= 0 then
+            if loopTimes == 0 then
                 return nil
             end
             sleep(settings.network.pollRate)
@@ -376,19 +375,24 @@ function getComputerDetails(id)
 end
 function resolveComputer(cString)
     local cID = nil
-                if localComputers[tonumber(cString)] then
-                    cID = tonumber(cString)
-                elseif localComputers[getComputerID(cString)] then
-                    cID = getComputerID(cString)
-                elseif cString == "!" and closestID then
-                    cID = closestID
-                end
+    
+    if localComputers[tonumber(cString)] then
+        cID = tonumber(cString)
+    elseif localComputers[getComputerID(cString)] then
+        cID = getComputerID(cString)
+    elseif cString == "!" then
+        local closestID = getClosestPC()
+        if closestID then
+            cID = closestID
+        end
+    end
     return cID
 end
 function ping(cId)
     return sendNet(cId, "ping", "ping")
 end
 function getClosestPC()
+    local gpsPos = getPosition()
     if gpsPos then
         local closestDist = nil
         local closestID = nil
@@ -403,9 +407,10 @@ function getClosestPC()
         end
         return closestID
     end
-    return
+    return nil
 end
 function emitComputerDetails()
+    local gpsPos = getPosition()
     local cDetails = {
         id = os.getComputerID(),
         pos = gpsPos,
@@ -419,7 +424,7 @@ end
 function trimLocalComputers()
     for id, details in pairs(localComputers) do
         if details.time then
-            timeElapsed = os.time() - details.time -- WHAT KIND OF TIME IS THIS!?!?
+            local timeElapsed = os.time() - details.time -- WHAT KIND OF TIME IS THIS!?!?
             if timeElapsed > 0.2 then
                 localComputers[id] = nil --remove computer from list if it hasn't sent updates recently
             end
@@ -429,6 +434,7 @@ function trimLocalComputers()
     end
 end
 function scanInRange()
+    local gpsPos = getPosition()
         if gpsPos and settings.redstone.ranged then
             for id, isPaired in pairs(pairedClients) do
                 if localComputers[id] then
@@ -509,21 +515,24 @@ function fetchFile(cId, filePath, fileTo, silent)
             if not silent then
                 nPrint("File '" .. fileTo .. "' received!", "green")
             end
+            return res.data
         else
             if not silent then
                 nPrint("File not found!", "red")
             end
+            return false
         end
     else    
         if not silent then
             nPrint("No response received.", "red")
         end
+        return false
     end
 end
 -------
 --GPS--
-gpsPos = nil
 locations = {}
+navigatingToBlock = false
 navto = nil
 navtoid = nil
 navname = ""
@@ -549,10 +558,9 @@ function getWorldTiles()
         worldTiles = res
     end
 end
-
 function getPosition()
     local px, py, pz = gps.locate(5)
-    if not isNan(px) and not isNan(py) and not isNan(pz) then 
+    if px and (not isNan(px)) then 
         px = px + settings.gps.offset.x
         py = py + settings.gps.offset.y
         pz = pz + settings.gps.offset.z
@@ -579,17 +587,14 @@ function update()
     os.reboot()
 end
 function checkForUpdate()
-    fetchFile(settings.NodeOSMasterID, "NodeOS/ver.txt", "settings/ver.txt", true)
-        if fs.exists("settings/ver.txt") then
-            local file = fs.open("settings/ver.txt","r")
-            local nVer = file.readAll()
-            file.close()
-            if nVer ~= ver then
-                return true
-            else
-                return false
-            end
+    local nVer = fetchFile(settings.NodeOSMasterID, "NodeOS/ver.txt", "settings/ver.txt", true)
+    if nVer then
+        if nVer ~= ver then
+            return true
+        else
+            return false
         end
+    end
 end
 
 
@@ -602,16 +607,16 @@ function clear()
     if settings.rdID then
         sendNet(settings.rdID, "rdclear", "", true)
     end
-            term.clear()
-            term.setCursorPos(1,7)
-            if monitor then
-                monitor.clear()
-                monitor.setCursorPos(1,7)
-            end
-            if not settings.currentRdSession then
-                drawStatusBar()
-                drawHeader()
-            end
+    term.clear()
+    term.setCursorPos(1,7)
+    if monitor then
+        monitor.clear()
+        monitor.setCursorPos(1,7)
+    end
+    if not settings.currentRdSession then
+        drawStatusBar()
+        drawHeader()
+    end
 end
 function setCursorPos(x, y)
     local tx,ty = term.getSize()
@@ -673,10 +678,10 @@ function nPrint(text, fgColor, bgColor)
             setCursorPos(shell.dir():len() + settings.name:len() + 7, cy)
         end
     end
-            if not settings.currentRdSession then
-                drawStatusBar()
-                drawHeader()
-            end
+    if not settings.currentRdSession then
+        drawStatusBar()
+        drawHeader()
+    end
 end
 function nWrite(text, x, y, fgColor, bgColor, align)
     local tx,ty = term.getSize()
@@ -797,6 +802,8 @@ function fillLineWithBorder(bchar, line, fgColor, bgColor)
     nWrite(bchar, 1, line, fgColor, bgColor)
     nWrite(bchar, 1, line, fgColor, bgColor, "right")
 end
+lastGpsPos = nil
+compassString = ""
 function drawStatusBar()
     fillLine(" ", 1, settings.console.statusBar.fg, settings.console.statusBar.bg)
     nWrite(settings.name .. "(" .. os.getComputerID() .. ")", 1, 1, settings.console.statusBar.fg, settings.console.statusBar.bg)
@@ -809,6 +816,7 @@ function drawStatusBar()
         gpsColor = "red"
         gpsHex = 0xbb0000ff
     end
+    local gpsPos = getPosition()
     if gpsPos then
         gpsColor = "lime"
         gpsHex = 0x00bb00ff
@@ -832,6 +840,49 @@ function drawStatusBar()
         driverData.hud.gps.setColor(gpsHex)
         driverData.hud.net.setColor(netHex)
     end
+    if gpsPos and driverData.hud then
+        sX = math.floor(gpsPos.x)
+        sY = math.floor(gpsPos.y)
+        sZ = math.floor(gpsPos.z)
+        if not lastGpsPos then 
+            lastGpsPos = gpsPos
+        end
+        local ewString = ""
+        if gpsPos.x - 0.1 > lastGpsPos.x then
+            ewString = "E"
+        elseif gpsPos.x + 0.1 < lastGpsPos.x then
+            ewString = "W"
+        end
+        local nsString = ""
+        if gpsPos.z - 0.1 > lastGpsPos.z then
+            nsString = "S"
+        elseif gpsPos.z + 0.1 < lastGpsPos.z then
+            nsString = "N"
+        end
+        local nCompassString = nsString .. ewString
+        if (nCompassString ~= "") then
+            compassString = nCompassString
+        end
+        driverData.hud.title.setText(settings.name .. "(" .. os.getComputerID() .. ")   POS: " .. sX .. ", " .. sY .. ", " .. sZ .. "   Heading: " .. compassString)
+        lastGpsPos = gpsPos
+        local mobs = getMobs()
+        local warnString = "Entities: "
+        if mobs and next(mobs) then
+            local mobCount = 0
+            for _, mob in pairs(mobs) do
+                mobCount = mobCount + 1
+                local dist = math.floor(getDistance(gpsPos, mob))
+                if mobCount == 5 then
+                    warnString = warnString .. mob.name .. "(" .. dist .. ")"
+                    break
+                else
+                    warnString = warnString .. mob.name .. "(" .. dist .. ")" .. " - "
+                end
+            end
+        end
+        driverData.hud.warning.setText(warnString)
+        
+    end
 end
 function drawHeader()
     if isLocked then
@@ -842,6 +893,9 @@ function drawHeader()
         fillLineWithBorder("*", 5, "white", "red")
         fillLine("*", 6, "white", "red")
     else
+        local closestID = getClosestPC()
+        
+        local gpsPos = getPosition()
         fillLine("*", 2, settings.console.header.fg, settings.console.header.bg)
         fillLineWithBorder("*", 3, settings.console.header.fg, settings.console.header.bg)
         fillLineWithBorder("*", 4, settings.console.header.fg, settings.console.header.bg)
@@ -862,51 +916,64 @@ function drawHeader()
         else
             centerText("No Nearby PC", 3, "red", settings.console.header.bg)
         end
-        if (navto or navtoid) and gpsPos then
-            local ntZ = nil
-            local ntX = nil
-            local gpX = math.floor(gpsPos.x)
-            local gpY = math.floor(gpsPos.y)
-            local gpZ = math.floor(gpsPos.z)
-            if navtoid and not (localComputers[navtoid] and localComputers[navtoid].pos) then
-                return
-            end
-            if navtoid then
-                dist = math.floor(getDistance(gpsPos, localComputers[navtoid].pos))
-                ntX = math.floor(localComputers[navtoid].pos.x)
-                ntY = math.floor(localComputers[navtoid].pos.y)
-                ntZ = math.floor(localComputers[navtoid].pos.z)
-            else
-                dist = math.floor(getDistance(gpsPos, navto))
-                ntX = math.floor(navto.x)
-                ntY = math.floor(navto.y)
-                ntZ = math.floor(navto.z)
-            end
-            local headingStr = ""
-            if ntZ < gpZ then
-                headingStr = headingStr .. "N"
-            elseif ntZ > gpZ then
-                headingStr = headingStr .. "S"
-            end
-            if ntX < gpX then
-                headingStr = headingStr .. "W"
-            elseif ntX > gpX then
-                headingStr = headingStr .. "E"
-            end
-            if headingStr == "" then
-                if ntY < gpY then
-                    headingStr = "Down"
-                elseif ntY > gpY then
-                    headingStr = "Up"
+        if (navto or navtoid) then
+            if gpsPos then
+                local ntZ = nil
+                local ntX = nil
+                local gpX = math.floor(gpsPos.x)
+                local gpY = math.floor(gpsPos.y)
+                local gpZ = math.floor(gpsPos.z)
+                if navtoid and not (localComputers[navtoid] and localComputers[navtoid].pos) then
+                    return
+                end
+                if navtoid then
+                    dist = math.floor(getDistance(gpsPos, localComputers[navtoid].pos))
+                    ntX = math.floor(localComputers[navtoid].pos.x)
+                    ntY = math.floor(localComputers[navtoid].pos.y)
+                    ntZ = math.floor(localComputers[navtoid].pos.z)
+                else
+                    dist = math.floor(getDistance(gpsPos, navto))
+                    ntX = math.floor(navto.x)
+                    ntY = math.floor(navto.y)
+                    ntZ = math.floor(navto.z)
+                end
+                local headingStr = ""
+                if ntZ < gpZ then
+                    headingStr = headingStr .. "N"
+                elseif ntZ > gpZ then
+                    headingStr = headingStr .. "S"
+                end
+                if ntX < gpX then
+                    headingStr = headingStr .. "W"
+                elseif ntX > gpX then
+                    headingStr = headingStr .. "E"
                 end
                 if headingStr == "" then
-                    headingStr = "Here"
+                    if ntY < gpY then
+                        headingStr = "Down"
+                    elseif ntY > gpY then
+                        headingStr = "Up"
+                    end
+                    if headingStr == "" then
+                        headingStr = "Here"
+                    end
+                end
+                navText = "[" .. navname .. "] '" .. headingStr .. "' Dist:" .. dist
+                centerText(navText, 5, "white", settings.console.header.bg)
+                if driverData.hud then
+                    driverData.hud.nav.setText(navText)
                 end
             end
-            navText = "[" .. navname .. "] '" .. headingStr .. "' Dist:" .. dist
+        elseif navname ~= "" then
+            navText = "Searching for '" .. navname .. "'..."
             centerText(navText, 5, "white", settings.console.header.bg)
             if driverData.hud then
                 driverData.hud.nav.setText(navText)
+            end
+        else
+            centerText(" ", 5, "white", settings.console.header.bg)
+            if driverData.hud then
+                driverData.hud.nav.setText(" ")
             end
         end
     end
@@ -1155,6 +1222,7 @@ commands = {
         isLocal = true,
         isRemote = true,
         exec = function (params, responseToken, senderID)
+            local gpsPos = getPosition()
             if gpsPos then
                 if senderID then
                     rednet.send(senderID, {data = "X:" .. math.floor(gpsPos.x) .. " Y:" .. math.floor(gpsPos.y) .. " Z:" .. math.floor(gpsPos.z), responseToken = responseToken}, "NodeOSCommandResponse")
@@ -1185,6 +1253,7 @@ commands = {
             local scanHeight = 0
             for id, details in pairs(localComputers) do
                 local dist = "?"
+                local gpsPos = getPosition()
                 if gpsPos and localComputers[id].pos then
                     dist = math.floor(getDistance(gpsPos, localComputers[id].pos))
                 end
@@ -1253,6 +1322,7 @@ commands = {
             local scanHeight = 0
             for name, lPos in pairs(locations) do
                 local dist = "?"
+                local gpsPos = getPosition()
                 if gpsPos then
                     dist = math.floor(getDistance(gpsPos, lPos))
                 end
@@ -1279,6 +1349,7 @@ commands = {
             local scanHeight = 0
             for id, pin in pairs(pairedPCs) do
                 local dist = "?"
+                local gpsPos = getPosition()
                 if gpsPos and localComputers[id] and localComputers[id].pos then
                     dist = math.floor(getDistance(gpsPos, localComputers[id].pos))
                 end
@@ -1316,7 +1387,7 @@ commands = {
                     if params[3] then
                         local cId = nil
                         if localComputers[params[3]] then
-                            cId = params[3]
+                            cId = tonumber(params[3])
                         else
                             cId = getComputerID(params[3])
                         end
@@ -1326,6 +1397,7 @@ commands = {
                             nPrint("Could not connect to PC.", "red")
                         end
                     else
+                        local closestID = getClosestPC()
                         if closestID then
                             fetchFile(closestID, params[1], params[2])
                         else
@@ -1354,8 +1426,8 @@ commands = {
                 elseif localComputers[getComputerID(params[1])] then
                     cId = getComputerID(params[1])
                     table.remove(params, 1)
-                elseif params[1] == "!" and closestID then
-                    cId = closestID
+                elseif params[1] == "!" then
+                    cId = getClosestPC()
                 end
                 if cId then
                     local res = sendNet(cId, "msg", {name = settings.name, msg = listToString(params)})
@@ -1399,6 +1471,7 @@ commands = {
                         nPrint("Could not connect to PC.", "red")
                     end
                 else
+                    local closestID = getClosestPC()
                     if closestID then
                         if pairedPCs[closestID] then
                             nPrint("This PC is already paired!", "red")
@@ -1434,6 +1507,7 @@ commands = {
                         nPrint("Could not connect to PC.", "red")
                     end
                 else
+                    local closestID = getClosestPC()
                     if closestID then
                         unpair(closestID)
                     else
@@ -1764,6 +1838,7 @@ commands = {
         isRemote = false,
         exec = function (params, responseToken, senderID)
             if params[1] then
+                local gpsPos = getPosition()
                 if gpsPos then
                     if not isInt(tonumber(params[1])) then
                         if not getComputerID(params[1]) then
@@ -1804,45 +1879,67 @@ commands = {
         end
     },
     navto = {
-        usage = "navto <locationname/blockname>",
+        usage = "navto <locationname>",
         details = "Navigate to specified location or computer.",
         isLocal = true,
         isRemote = false,
         exec = function (params, responseToken, senderID)
             if params[1] then
+                local gpsPos = getPosition()
                 if gpsPos then
+                    navto = nil
+                    navtoid = nil
+                    navigatingToBlock = false
                     if localComputers[tonumber(params[1])] and localComputers[tonumber(params[1])].pos then
-                        navto = nil
                         navtoid = tonumber(params[1])
                         navname = localComputers[navtoid].name
                         nPrint("Navigating to computer ID '" .. params[1] .. "'.", "green")
                     elseif localComputers[getComputerID(params[1])] then
-                        navto = nil
                         navtoid = getComputerID(params[1])
                         navname = localComputers[navtoid].name
                         nPrint("Navigating to computer '" .. params[1] .. "'.", "green")
                     elseif locations[params[1]] then
                         navto = locations[params[1]]
                         navname = params[1]
-                        navtoid = nil
                         nPrint("Navigating to '" .. params[1] .. "'.", "green")
                     else
-                        getWorldTiles()
-                        closestBlock = findClosestBlock(params[1])
-                        if closestBlock then
-                            navto = {x = closestBlock.x, y = closestBlock.y, z = closestBlock.z}
-                            navname = params[1]
-                            navtoid = nil
-                            nPrint("Navigating to '" .. closestBlock.name .. "'.", "green")
-                        else
-                            nPrint("Location does not exist.", "red")
-                        end
+                        nPrint("Location not found.", "white")
                     end
                 else
                     nPrint("No GPS signal available.", "red")
                 end
             else
                 nPrint("Usage: navto <locationname>", "red")
+            end
+        end
+    },
+    find = {
+        usage = "find <blockname>",
+        details = "Watches for and navigates to a block.",
+        isLocal = true,
+        isRemote = false,
+        exec = function (params, responseToken, senderID)
+            if params[1] then
+                local gpsPos = getPosition()
+                if gpsPos then
+                    navto = nil
+                    navtoid = nil
+                    navigatingToBlock = true
+                    getWorldTiles()
+                    closestBlock = findClosestBlock(params[1])
+                    navname = params[1]
+                    navigatingToBlock = true
+                    if closestBlock then
+                        navto = {x = closestBlock.x, y = closestBlock.y, z = closestBlock.z}
+                        nPrint("Navigating to '" .. closestBlock.name .. "'.", "green")
+                    else
+                        nPrint("Block not found, trying to find '" .. navname .. "'", "white")
+                    end
+                else
+                    nPrint("No GPS signal available.", "red")
+                end
+            else
+                nPrint("Usage: find <blockname>", "red")
             end
         end
     },
@@ -1870,6 +1967,7 @@ commands = {
                         nPrint("This location does not exist.", "red")
                     end
                 else
+                    local closestID = getClosestPC()
                     if closestID then
                         if locations[params[1]] then
                             navsend(closestID, params[1], locations[params[1]])
@@ -1929,7 +2027,7 @@ commands = {
                 local cLogs = nil
                 if params[1] then
                     if params[1] == "!" then
-                        cId = closestID
+                        cId = getClosestPC()
                     elseif localComputers[tonumber(params[1])] then
                         cId = tonumber(params[1])
                     else
@@ -1983,7 +2081,7 @@ commands = {
         isLocal = false,
         isRemote = true,
         exec = function (params, responseToken, senderID)
-            local px, py, pz = gps.locate(1)
+            local px, py, pz = gps.locate(2)
             if localComputers[senderID] and px then
                 if localComputers[senderID].pos then
                     settings.gps.offset.x = localComputers[senderID].pos.x - px
@@ -2249,6 +2347,7 @@ function findClosestBlock(blockSearch)
     
     closestBlock = nil
     closestBlockDistance = nil
+    local gpsPos = getPosition()
     if gpsPos then
         matches = searchBlocks(blockSearch)
         for i, block in pairs(matches) do
@@ -2263,9 +2362,9 @@ function findClosestBlock(blockSearch)
 end
 function setWorldTiles(blocks)
     for i, block in pairs(blocks) do
-        local posX = math.floor(block.x)
-        local posY = math.floor(block.y)
-        local posZ = math.floor(block.z)
+        local posX = block.x
+        local posY = block.y
+        local posZ = block.z
         local name = block.name
         if not worldTiles[posX] then
             worldTiles[posX] = {}
@@ -2277,7 +2376,7 @@ function setWorldTiles(blocks)
             worldTiles[posX][posY][posZ] = {}
         end
         if name == "minecraft:air" then
-            worldTiles[posX][posY][posZ] = nil
+            worldTiles[posX][posY][posZ] = nil --shitty map compression lol
             if (not next(worldTiles[posX][posY])) then
                 worldTiles[posX][posY] = nil
                 if (not next(worldTiles[posX])) then
@@ -2305,37 +2404,79 @@ end
 function peripheralThread()
     while true do
         scanPeripherals()
-        if (driverData.neuralInterface and worldTiles and driverData.neuralInterface.hasModule("plethora:scanner")) then
-            if gpsPos then
-                newWorldTiles = {}
-                for _, block in pairs(driverData.neuralInterface.scan()) do
-                    block.x = math.floor(gpsPos.x) + block.x
-                    block.y = math.floor(gpsPos.y) + block.y
-                    block.z = math.floor(gpsPos.z) + block.z
-                    nblock = {
-                        x = block.x,
-                        y = block.y,
-                        z = block.z,
-                        name = block.name,
-                        metadata = block.metadata
-                    }
-                    table.insert(newWorldTiles, nblock)
+        if driverData.neuralInterface then
+            if (driverData.neuralInterface.hasModule("plethora:scanner")) then
+                local gpsPos = getPosition()
+                if gpsPos then
+                    local newWorldTiles = {}
+                    for _, block in pairs(driverData.neuralInterface.scan()) do
+                        block.x = math.floor(gpsPos.x) + block.x
+                        block.y = math.floor(gpsPos.y) + block.y
+                        block.z = math.floor(gpsPos.z) + block.z
+                        nblock = {
+                            x = block.x,
+                            y = block.y,
+                            z = block.z,
+                            name = block.name,
+                            metadata = block.metadata
+                        }
+                        table.insert(newWorldTiles, nblock)
+                    end
+                    setWorldTiles(newWorldTiles)
+                    sendNet(settings.NodeOSMasterID, "setWorldTiles", newWorldTiles, true)
                 end
-                setWorldTiles(newWorldTiles)
-                sendNet(settings.NodeOSMasterID, "setWorldTiles", newWorldTiles, true)
             end
         end
-            -- driverData.neuralInterface.hasModule("plethora:sensor"))
         os.sleep(settings.peripherals.pollRate)
     end
 end
+function getMobs()
+    if driverData.neuralInterface then
+        local gpsPos = getPosition()
+        if (driverData.neuralInterface.hasModule("plethora:sensor")) then
+            if gpsPos then
+                local newMobs = {}
+                for _, entity in pairs(driverData.neuralInterface.sense()) do
+                    if entity.name ~= "Item"then
+                        local meta = driverData.neuralInterface.getMetaByID(entity.id)
+                        if meta and meta.x ~= 0 and meta.z ~= 0 then 
+                            meta.x = math.floor(gpsPos.x) + meta.x
+                            meta.y = math.floor(gpsPos.y) + meta.y
+                            meta.z = math.floor(gpsPos.z) + meta.z
+                            nEnt = {
+                                x = meta.x,
+                                y = meta.y,
+                                z = meta.z,
+                                name = meta.name,
+                                id = entity.id
+                            }
+                            table.insert(newMobs, nEnt)
+                        end
+                    end
+                end
+                return newMobs
+            end
+        end
+    end
+    return nil
+end
 function netExchange()
     while true do
-        gpsPos = getPosition()
-        closestID = getClosestPC()
         emitComputerDetails()
         trimLocalComputers()
         scanInRange()
+        local gpsPos = getPosition()
+        if navigatingToBlock and gpsPos then
+            if not navto or getDistance(navto, gpsPos) > 5 then
+                closestBlock = findClosestBlock(navname)
+                navtoid = nil
+                if closestBlock then
+                    navto = {x = closestBlock.x, y = closestBlock.y, z = closestBlock.z}
+                else
+                    navto = nil
+                end
+            end
+        end
         os.sleep(settings.gps.pollRate)
     end
 end
@@ -2398,6 +2539,13 @@ function updateThread()
     while true do
         --save caches
         save(localComputers, localComputersPath)
+        
+        local gpsPos = getPosition()
+        if navigatingToBlock and gpsPos then
+            if not navto or getDistance(navto, gpsPos) > 5 then
+                getWorldTiles()
+            end
+        end
         if settings.NodeOSMasterID == os.getComputerID() then
             save(worldTiles, worldTilesPath)
         end
@@ -2475,6 +2623,7 @@ function osThread()
                     command = table.remove(params, 1)
                     if command then
                         command = string.lower(command)
+                        local closestID = getClosestPC()
                         if closestID then
                             local res = sendCommand(closestID, command, params)
                             if res then
@@ -2619,13 +2768,15 @@ drivers = {
                 driverData.hud.canvas.clear()
                 -- And add a rectangle
                 local cw, ch = driverData.hud.canvas.getSize()
-                driverData.hud.titleBarRect = driverData.hud.canvas.addRectangle(0, 0, cw, 15, 0x4444bbaa)
+                driverData.hud.statusBarRect = driverData.hud.canvas.addRectangle(0, 0, cw, 15, 0x4444bbaa)
                 driverData.hud.title = driverData.hud.canvas.addText({ x = 5, y = 4 }, settings.name .. "(" .. os.getComputerID() .. ")")
                 driverData.hud.time = driverData.hud.canvas.addText({ x = cw - 50, y = 4 }, "")
                 driverData.hud.gps = driverData.hud.canvas.addText({ x = cw - 75, y = 4 }, "GPS")
                 driverData.hud.net = driverData.hud.canvas.addText({ x = cw - 100, y = 4 }, "NET")
-                driverData.hud.statusBarRect = driverData.hud.canvas.addRectangle(0, 15, cw, 15, 0x333333aa)
-                driverData.hud.nav = driverData.hud.canvas.addText({ x = 5, y = 19 }, "")
+                driverData.hud.warningBarRect = driverData.hud.canvas.addRectangle(0, 15, cw, 15, 0x333333aa)
+                driverData.hud.warning = driverData.hud.canvas.addText({ x = 5, y = 19 }, "")
+                driverData.hud.navBarRect = driverData.hud.canvas.addRectangle(0, 30, cw, 15, 0x333333aa)
+                driverData.hud.nav = driverData.hud.canvas.addText({ x = 5, y = 34 }, "")
             end
             commands.runto = {
                 usage = "runto <locationname/blockname>",
@@ -2635,6 +2786,8 @@ drivers = {
                 exec = function (params, responseToken, senderID)
                     if driverData.neuralInterface.hasModule("plethora:kinetic") then
                         if params[1] then
+                            
+                            local gpsPos = getPosition()
                             if gpsPos then
                                 if localComputers[tonumber(params[1])] and localComputers[tonumber(params[1])].pos then
                                     navto = nil
