@@ -1,0 +1,377 @@
+{
+  kelp_plant = {
+    fgColor = "green",
+    char = "*",
+    bgColor = "blue",
+  },
+  andesite = {
+    fgColor = "lightGray",
+    char = " ",
+    bgColor = "lightGray",
+  },
+  horn_coral_block = {
+    fgColor = "yellow",
+    bgColor = "yellow",
+    char = " ",
+  },
+  tall_grass = {
+    fgColor = "lime",
+    bgColor = "green",
+    char = "\"",
+  },
+  sea_pickle = {
+    fgColor = "green",
+    bgColor = "blue",
+    char = "P",
+  },
+  bubble_coral_block = {
+    fgColor = "blue",
+    bgColor = "blue",
+    char = " ",
+  },
+  cave_vines = {
+    fgColor = "lime",
+    char = "|",
+    bgColor = "green",
+  },
+  brain_coral = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "}",
+  },
+  fern = {
+    fgColor = "lime",
+    bgColor = "green",
+    char = ":",
+  },
+  flowering_azalea = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "*",
+  },
+  horn_coral = {
+    fgColor = "yellow",
+    bgColor = "yellow",
+    char = " ",
+  },
+  oak_log = {
+    fgColor = "lightGray",
+    char = "@",
+    bgColor = "brown",
+  },
+  coal_ore = {
+    fgColor = "white",
+    bgColor = "gray",
+    char = "C",
+  },
+  polished_granite = {
+    fgColor = "orange",
+    bgColor = "orange",
+    char = " ",
+  },
+  budding_amethyst = {
+    fgColor = "lightBlue",
+    char = "*",
+    bgColor = "purple",
+  },
+  calcite = {
+    fgColor = "white",
+    char = " ",
+    bgColor = "white",
+  },
+  tube_coral_fan = {
+    fgColor = "lightBlue",
+    bgColor = "blue",
+    char = "}",
+  },
+  polished_diorite = {
+    fgColor = "white",
+    bgColor = "white",
+    char = " ",
+  },
+  jungle_log = {
+    fgColor = "lightGray",
+    bgColor = "brown",
+    char = "@",
+  },
+  seagrass = {
+    fgColor = "green",
+    bgColor = "blue",
+    char = "\"",
+  },
+  granite = {
+    fgColor = "orange",
+    char = " ",
+    bgColor = "orange",
+  },
+  moss_carpet = {
+    fgColor = "green",
+    bgColor = "green",
+    char = " ",
+  },
+  grass = {
+    fgColor = "lime",
+    bgColor = "green",
+    char = "\"",
+  },
+  deepslate_iron_ore = {
+    fgColor = "white",
+    char = "I",
+    bgColor = "lightGray",
+  },
+  moss_block = {
+    fgColor = "green",
+    char = " ",
+    bgColor = "green",
+  },
+  gravel = {
+    fgColor = "gray",
+    char = ";",
+    bgColor = "lightGray",
+  },
+  amethyst_cluster = {
+    fgColor = "lightBlue",
+    char = "^",
+    bgColor = "purple",
+  },
+  water = {
+    fgColor = "lightGray",
+    bgColor = "blue",
+    char = "~",
+  },
+  tube_coral = {
+    fgColor = "lightBlue",
+    bgColor = "blue",
+    char = "^",
+  },
+  jungle_leaves = {
+    fgColor = "green",
+    bgColor = "lime",
+    char = "#",
+  },
+  deepslate = {
+    fgColor = "gray",
+    char = " ",
+    bgColor = "gray",
+  },
+  brain_coral_block = {
+    fgColor = "pink",
+    bgColor = "pink",
+    char = " ",
+  },
+  iron_ore = {
+    fgColor = "white",
+    char = "I",
+    bgColor = "lightGray",
+  },
+  smooth_basalt = {
+    fgColor = "black",
+    char = ":",
+    bgColor = "gray",
+  },
+  horn_coral_wall_fan = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "{",
+  },
+  [ "computercraft:wireless_modem_advanced" ] = {
+    fgColor = "purple",
+    bgColor = "orange",
+    char = "P",
+  },
+  glow_lichen = {
+    fgColor = "lightBlue",
+    char = "|",
+    bgColor = "blue",
+  },
+  dirt = {
+    fgColor = "brown",
+    bgColor = "brown",
+    char = " ",
+  },
+  bubble_coral_fan = {
+    fgColor = "lightBlue",
+    bgColor = "blue",
+    char = "}",
+  },
+  bubble_coral_wall_fan = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "{",
+  },
+  sea_lantern = {
+    fgColor = "lightBlue",
+    bgColor = "blue",
+    char = "!",
+  },
+  tall_seagrass = {
+    fgColor = "green",
+    bgColor = "blue",
+    char = "\"",
+  },
+  vine = {
+    fgColor = "lime",
+    bgColor = "green",
+    char = "|",
+  },
+  stone = {
+    fgColor = "lightGray",
+    bgColor = "lightGray",
+    char = " ",
+  },
+  bubble_coral = {
+    fgColor = "blue",
+    bgColor = "blue",
+    char = " ",
+  },
+  brain_coral_fan = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "}",
+  },
+  oak_leaves = {
+    fgColor = "green",
+    bgColor = "lime",
+    char = "#",
+  },
+  horn_coral_fan = {
+    fgColor = "yellow",
+    bgColor = "blue",
+    char = "}",
+  },
+  deepslate_gold_ore = {
+    fgColor = "white",
+    char = "G",
+    bgColor = "orange",
+  },
+  sand = {
+    fgColor = "yellow",
+    bgColor = "yellow",
+    char = " ",
+  },
+  sandstone = {
+    fgColor = "yellow",
+    bgColor = "yellow",
+    char = " ",
+  },
+  cave_vines_plant = {
+    fgColor = "lime",
+    char = "|",
+    bgColor = "lightGray",
+  },
+  big_dripleaf = {
+    fgColor = "green",
+    char = "O",
+    bgColor = "blue",
+  },
+  cut_sandstone = {
+    fgColor = "yellow",
+    bgColor = "yellow",
+    char = " ",
+  },
+  fire_coral_fan = {
+    fgColor = "red",
+    bgColor = "blue",
+    char = "}",
+  },
+  lava = {
+    fgColor = "yellow",
+    char = "~",
+    bgColor = "orange",
+  },
+  kelp = {
+    fgColor = "green",
+    char = "*",
+    bgColor = "blue",
+  },
+  amethyst_block = {
+    fgColor = "lightBlue",
+    char = "*",
+    bgColor = "purple",
+  },
+  fire_coral_wall_fan = {
+    fgColor = "red",
+    bgColor = "blue",
+    char = "}",
+  },
+  tube_coral_wall_fan = {
+    fgColor = "lightBlue",
+    bgColor = "blue",
+    char = "{",
+  },
+  deepslate_diamond_ore = {
+    fgColor = "white",
+    char = "D",
+    bgColor = "lightBlue",
+  },
+  bubble_column = {
+    fgColor = "lightBlue",
+    char = "%",
+    bgColor = "blue",
+  },
+  tube_coral_block = {
+    fgColor = "blue",
+    bgColor = "blue",
+    char = " ",
+  },
+  deepslate_lapis_ore = {
+    fgColor = "white",
+    char = "L",
+    bgColor = "blue",
+  },
+  tuff = {
+    fgColor = "lightGray",
+    char = " ",
+    bgColor = "lightGray",
+  },
+  fire_coral_block = {
+    fgColor = "red",
+    bgColor = "red",
+    char = " ",
+  },
+  brain_coral_wall_fan = {
+    fgColor = "pink",
+    bgColor = "blue",
+    char = "}",
+  },
+  [ "computercraft:computer_normal" ] = {
+    fgColor = "purple",
+    bgColor = "orange",
+    char = "C",
+  },
+  copper_ore = {
+    fgColor = "white",
+    bgColor = "orange",
+    char = "C",
+  },
+  gold_block = {
+    fgColor = "orange",
+    bgColor = "orange",
+    char = " ",
+  },
+  deepslate_redstone_ore = {
+    fgColor = "white",
+    char = "R",
+    bgColor = "red",
+  },
+  diorite = {
+    fgColor = "white",
+    char = " ",
+    bgColor = "white",
+  },
+  clay = {
+    fgColor = "lightGray",
+    char = " ",
+    bgColor = "lightGray",
+  },
+  grass_block = {
+    fgColor = "green",
+    bgColor = "green",
+    char = " ",
+  },
+  magma_block = {
+    fgColor = "yellow",
+    char = "*",
+    bgColor = "orange",
+  },
+}
