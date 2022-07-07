@@ -50,7 +50,7 @@ function getPosition()
     local gpsPos = nil
     timeDiff = os.time() - lastPoll
     if timeDiff < 0 then
-        timeDiff = 0
+        timeDiff = -timeDiff 
     end
     if timeDiff >= gps_settings.pollRate then
         lastPoll = os.time() + gps_settings.pollRate
