@@ -39,6 +39,9 @@ end
 if not fs.exists("config") then
     fs.makeDir("config")
 end
+if not fs.exists("appdata") then
+    fs.makeDir("appdata")
+end
 if fs.exists("temp") then
     fs.delete("temp")
 end

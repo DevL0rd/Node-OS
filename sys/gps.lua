@@ -39,8 +39,6 @@ function emitComputerDetails(gpsPos)
         id = os.getComputerID(),
         pos = gpsPos,
         name = settings.name,
-        OU = settings.OU,
-        message = settings.message,
         time = os.time()
     }
     broadcastNet("giveDetails", cDetails)
@@ -55,7 +53,6 @@ function getPosition()
         timeDiff = 0
     end
     if timeDiff >= gps_settings.pollRate then
-        -- print(os.time())
         lastPoll = os.time() + gps_settings.pollRate
         local px, py, pz = gps.locate(5)
         if px and (not isNan(px)) then 

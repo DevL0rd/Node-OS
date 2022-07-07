@@ -47,18 +47,6 @@ if not settings.isSetup then
         inp = "0000"
     end
     settings.pairPin = inp
-    term.setCursorPos(1, 1)
-    term.clear()
-    centerText("SETUP",1,"purple")
-    nPrint("Type a message players will see when they are in your computer's range.")
-    term.setTextColor(colors["purple"])
-    write("Message")
-    term.setTextColor(colors["lightGray"])
-    write(">>")
-    local inp = read()
-    settings.message = inp
-    term.setCursorPos(1, 1)
-    term.clear()
 
     settings.isSetup = true
     save(settings, settingsPath)

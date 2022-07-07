@@ -3,6 +3,7 @@ navigatingToBlock = false
 navto = nil
 navtoid = nil
 navname = ""
+serverTiles = {}
 worldTiles = {}
 markedTiles = {}
 computerTiles = {}
@@ -12,6 +13,18 @@ tileGraphics = {}
 tileGraphicsPath = "sys/storage/tileGraphics.dat"
 worldRenderDepth = 100
 inputingColor = false
+
+if not fs.exists("appdata/map") then
+    fs.makeDir("appdata/map")
+end
+tiles_path = "appdata/map/serverTiles.dat"
+if os.getComputerID() == settings.NodeOSMasterID then
+    if not fs.exists(tiles_path) then
+        save(serverTiles, tiles_path)
+    else
+        serverTiles = load(tiles_path)
+    end
+end
 if not fs.exists(tileGraphicsPath) then
     save(tileGraphics, tileGraphicsPath)
 else
@@ -441,9 +454,39 @@ function getWorldTiles(pos, radius, height)
         setWorldTiles(pos, radius, height, blocks)
     end
 end
-netcoms.getWorldTiles = {
-    exec = function (senderID, responseToken, data)
-        if os.getComputerID() == settings.NodeOSMasterID then
+function getAllWorldTiles()
+    local tiles = sendNet(settings.NodeOSMasterID, "getWorldTiles", {all=true})
+    if tiles then
+        for x, y in pairs(tiles) do
+            for y, z in pairs(y) do
+                for z, name in pairs(z) do
+                    if not worldTiles[x] then
+                        worldTiles[x] = {}
+                    end
+                    if not worldTiles[x][y] then
+                        worldTiles[x][y] = {}
+                    end
+                    if not worldTiles[x][y][z] then
+                        worldTiles[x][y][z] = {}
+                    end
+                    local block = {}
+                    block.x = x
+                    block.y = y
+                    block.z = z
+                    block.name = name
+                    worldTiles[x][y][z] = block
+                end
+            end
+        end
+    end
+end
+if os.getComputerID() == settings.NodeOSMasterID then
+    netcoms.getWorldTiles = {
+        exec = function (senderID, responseToken, data)
+            if data.all then
+                rednet.send(senderID, {data = serverTiles, responseToken = responseToken}, "NodeOSNetResponse")
+                return
+            end
             -- for blocks in data.radius
             if data.radius > 31 then
                 data.radius = 31
@@ -477,7 +520,6 @@ netcoms.getWorldTiles = {
             my = math.floor(my)
             my2 = math.floor(my2)
             local width = data.radius * 2 + 1
-            print(mx .. " " .. my .. " " .. mz .. " -- " .. mx2 .. " " .. my2 .. " " .. mz2)
             --take slices by height
             for posY = my, my2 do
                 local blockSlice = commands.getBlockInfos(mx, posY, mz, mx2, posY, mz2)
@@ -509,17 +551,37 @@ netcoms.getWorldTiles = {
                             if not tempTiles[posX][posY][posZ] then
                                 tempTiles[posX][posY][posZ] = {}
                             end
-                            -- print(block.name)
                             tempTiles[posX][posY][posZ] = name
-                            -- print(name)
+                            if not serverTiles[posX] then
+                                serverTiles[posX] = {}
+                            end
+                            if not serverTiles[posX][posY] then
+                                serverTiles[posX][posY] = {}
+                            end
+                            if not serverTiles[posX][posY][posZ] then
+                                serverTiles[posX][posY][posZ] = {}
+                            end
+                            serverTiles[posX][posY][posZ] = name
+                        elseif serverTiles[posX] and serverTiles[posX][posY] and serverTiles[posX][posY][posZ] then
+                            serverTiles[posX][posY][posZ] = nil --shitty map compression lol
+                            if (not next(serverTiles[posX][posY])) then
+                                serverTiles[posX][posY] = nil
+                                if (not next(serverTiles[posX])) then
+                                    serverTiles[posX] = nil
+                                end
+                            end
                         end
                     end
                 end
             end
             rednet.send(senderID, {data = tempTiles, responseToken = responseToken}, "NodeOSNetResponse")
         end
+    }
+    function saveServerTiles()
+        save(serverTiles, tiles_path)
     end
-}
+    table.insert(update_threads, saveServerTiles)
+end
 function navsend(cId, name, pos)
     local res = sendNet(cId, "navsend", {name = name, pos = pos})
     if res then
@@ -713,6 +775,7 @@ function findBlockThread()
     end
 end
 function startMap()
+    getAllWorldTiles()
     parallel.waitForAny(liveMapThread, inputThread, worldTilesUpdateThread, findBlockThread)
 end
 coms.map = {
@@ -735,14 +798,8 @@ coms.find = {
             if gpsPos then
                 navto = nil
                 navtoid = nil
-                navigatingToBlock = true
-                getWorldTiles(gpsPos, 16, 16)
-                local closestBlock = findClosestBlock(gpsPos, params[1])
                 navname = params[1]
                 navigatingToBlock = true
-                if closestBlock then
-                    navto = {x = closestBlock.x, y = closestBlock.y, z = closestBlock.z}
-                end
                 startMap()
             else
                 nPrint("No GPS signal available.", "red")
