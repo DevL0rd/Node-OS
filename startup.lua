@@ -1,22 +1,7 @@
-if ccemux then
-    ccemux.attach("left", "wireless_modem", {
-        -- The range of this modem
-        range = 64,
-
-        -- Whether this is an ender modem
-        interdimensional = false,
-
-        -- The current world's name. Sending messages between worlds requires an interdimensional modem
-        world = "main",
-
-        -- The position of this wireless modem within the world
-        posX = 0, posY = 0, posZ = 0,
-    })
-end
-term.setCursorPos(1, 1)
 term.clear()
+term.setCursorPos(1, 1)
 --Install to PC if inserted into disk drive.
-if fs.exists("disk/startup.lua") then
+if fs.exists("disk/startup.lua") and fs.exists("disk/sys/ver.txt") then
     if fs.exists("startup.lua") then
         term.setTextColor(colors.red)
         print("NodeOS cannot be installed on this system. A Startup file already exists!")
@@ -27,7 +12,9 @@ if fs.exists("disk/startup.lua") then
         os.reboot()
     else
         fs.copy("disk/startup.lua", "startup.lua")
+        fs.copy("disk/bin", "bin")
         fs.copy("disk/sys", "sys")
+        fs.copy("disk/lib", "lib")
         term.setTextColor(colors.green)
         print("NodeOS succesfully installed from disk!")
         os.sleep(2)
@@ -35,31 +22,201 @@ if fs.exists("disk/startup.lua") then
         os.reboot()
     end
 end
+term.clear()
+term.setCursorPos(1, 1)
+if fs.exists("/disk/startup") or fs.exists("/disk/startup.lua") then
+    write("Press any key to boot from disk")
 
-if not fs.exists("config") then
-    fs.makeDir("config")
+    parallel.waitForAny(function()
+        os.pullEvent("char")
+        if fs.exists("/disk/startup") then
+            shell.run('/disk/startup')
+        elseif fs.exists("/disk/startup.lua") then
+            shell.run('/disk/startup')
+        else
+            print("\nFailed to boot to disk. Is the disk still inserted?")
+            sleep(1)
+        end
+    end, function()
+        for i = 1, 3 do
+            write(".")
+            sleep(1)
+        end
+    end)
 end
-if not fs.exists("appdata") then
-    fs.makeDir("appdata")
-end
-if fs.exists("temp") then
-    fs.delete("temp")
-end
-fs.makeDir("temp")
-require 'sys.lib.require'
-require 'fstools'
-require 'misc'
-coms = {}
-require 'sys.update'
-require 'sys.net'
-require 'sys.gps'
-require 'sys.term'
-require 'sys.shell'
-require 'sys.peripherals'
-require 'sys.settings'
-require.tree("sys/plugins")
 
+if fs.exists("tmp") then
+    fs.delete("tmp")
+end
+fs.makeDir("tmp")
+if not fs.exists("home") then
+    fs.makeDir("home")
+end
+if not fs.exists("home/bin") then
+    fs.makeDir("home/bin")
+end
+if not fs.exists("home/Documents") then
+    fs.makeDir("home/Documents")
+end
+if not fs.exists("home/Downloads") then
+    fs.makeDir("home/Downloads")
+end
+if not fs.exists("home/Pictures") then
+    fs.makeDir("home/Pictures")
+end
+if not fs.exists("home/Music") then
+    fs.makeDir("home/Music")
+end
+if not fs.exists("home/Public") then
+    fs.makeDir("home/Public")
+end
 
---Start the main threads
-parallel.waitForAll(terminal_thread, peripheralThread, netRx_thread, netExec_thread, update_thread, gps_thread,
-    shell_thread)
+if not fs.exists("/etc/menu/pinned.cfg") then
+    local file = fs.open("/etc/menu/pinned.cfg", "w")
+    file.write(textutils.serialize({
+        {
+            title = "Shell",
+            path = "sys/shell.lua",
+            insettings = {
+                width = 40,
+                height = 17,
+                maximazed = true,
+                title = "Shell"
+            }
+        },
+        {
+            title = "Map",
+            path = "bin/map.lua",
+            insettings = {
+                width = 40,
+                height = 17,
+                maximazed = true,
+                title = "Map"
+            }
+        },
+        {
+            title = "Task Manager",
+            path = "/sys/ui/tskmgr.lua",
+            insettings = {
+                width = 30,
+                height = 15,
+                title = "Task Manager"
+            }
+        },
+        {
+            title = "Settings",
+            path = "/sys/ui/settings.lua",
+            insettings = {
+                width = 40,
+                height = 17,
+                maximazed = true,
+                title = "Settings"
+            }
+        },
+        {
+            title = "About",
+            path = "/sys/ui/about.lua",
+            insettings = {
+                width = 29,
+                height = 10,
+                title = "About NodeOS"
+            }
+        }
+    }))
+    file.close()
+end
+if not fs.exists("/etc/paths.cfg") then
+    local file = fs.open("/etc/paths.cfg", "w")
+    file.write(textutils.serialize({
+        "/home/bin",
+        "/bin"
+    }))
+    file.close()
+end
+if not fs.exists("/etc/libs.cfg") then
+    local file = fs.open("/etc/libs.cfg", "w")
+    file.write(textutils.serialize({
+        "/lib/?.lua",
+        "/lib/?/init.lua"
+    }))
+    file.close()
+end
+if not fs.exists("/etc/theme.cfg") then
+    local file = fs.open("/etc/theme.cfg", "w")
+    file.write(textutils.serialize({
+        currentTheme = "/sys/themes/dark.theme",
+    }))
+    file.close()
+end
+
+local settings = require("/lib/settings")
+term.clear()
+if not settings.settings.password then
+    print("Please input a password:")
+    local sha256 = require("/lib/sha256")
+    settings.settings.password = read("*")
+    if settings.settings.password ~= "" then
+        settings.settings.password = sha256(settings.settings.password)
+    end
+end
+if not os.getComputerLabel() then
+    print("Please input a computer name:")
+    os.setComputerLabel(read())
+end
+if not settings.settings.pin then
+    print("Please input a pairing pin:")
+    settings.settings.pin = read()
+end
+term.clear()
+settings.saveSettings(settings.settings)
+local w, h = term.getSize()
+local fail = false
+
+function yield()
+    os.queueEvent("randomEvent")
+    os.pullEvent("randomEvent")
+end
+
+if not term.isColor() then
+    printError("Please use a color terminal")
+    return false
+end
+
+-- local function animate()
+--     local frames = {
+--         { i = false, c = "\129" },
+--         { i = false, c = "\130" },
+--         { i = false, c = "\136" },
+--         { i = true, c = "\159" },
+--         { i = false, c = "\144" },
+--         { i = false, c = "\132" },
+--     }
+
+--     local function drawFrame(frame)
+--         term.setBackgroundColor(colors.gray)
+--         term.setTextColor(colors.white)
+--         if frame.i then
+--             term.setBackgroundColor(colors.white)
+--             term.setTextColor(colors.gray)
+--         end
+--         write(frame.c)
+--     end
+
+--     term.setCursorPos(w / 2 - string.len("Starting NodeOS") / 2 + 1, h / 2 + 2)
+--     term.write("Starting NodeOS")
+
+--     while true do
+--         for i, frame in pairs(frames) do
+--             if fail then while true do sleep(1) end end
+--             term.setCursorPos(w / 2, h / 2)
+--             drawFrame(frame)
+--             sleep(0.25)
+--         end
+--     end
+-- end
+
+term.setBackgroundColor(colors.black)
+term.clear()
+shell.run(
+    "/sys/kernel.lua"
+)

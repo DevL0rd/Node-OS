@@ -54,7 +54,7 @@ Probably will forget alot here. I have worked on this for a while before saving 
     * (WIP) Remote control other players or mobs using node os, or make a auto defence system to take over your body when in danger.
 
   * Web Displays (Broken on latest)
-  * If you have plethora and a block scanner, entity scanner, or are a turtle, AND you have gps, you will be mapping the world around you.
+  * If you have plethora and a block scanner, entity scanner, or are a turtle, AND you have loc, you will be mapping the world around you.
 
 ## Commands:
   * help

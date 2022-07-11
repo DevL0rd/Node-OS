@@ -1,8 +1,8 @@
 return {
-    init = function (side)
+    init = function(side)
         rednet.open(side)
     end,
-    unInit = function (side) 
+    unInit = function(side)
 
-    end 
+    end
 }

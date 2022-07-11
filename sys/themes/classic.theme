@@ -1,0 +1,33 @@
+{
+    window = {
+        titlebar = {
+            text = 128,
+            background = 256,
+            backgroundSelected = 8
+        },
+        close = 16384,
+        maximize = 32,
+        minimize = 16
+    },
+    desktop = {
+        background = 512
+    },
+    menu = {
+        background = 128,
+        text = 1,
+        textSecondary = 256
+    },
+    main = {
+        background = 1,
+        backgroundSecondary = 256,
+        text = 128,
+        textBold = 32768,
+        textSecondary = 256
+    },
+    userInput = {
+        background = 256,
+        text = 128,
+        backgroundSelected = 128,
+        textSelected = 256
+    }
+}

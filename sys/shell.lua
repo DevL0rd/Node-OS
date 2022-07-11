@@ -1,123 +1,40 @@
-shellRunning = false
-isLocked = true
-
-function shell_thread()
-    --STARTUP--
-    while true do
-        if settings.password == "" then
-            isLocked = false
-        end
-        newLine()
-        local input = getInput()
-        if isLocked then
-            if settings.password == input then
-                isLocked = false
-                statusBarHeight = 2
-                if devicesConnected["speaker"] then
-                    peripherals[devicesConnected["speaker"]].peripheral.playNote("bell", speaker_settings.volume, 1)
-                    sleep(0.1)
-                    peripherals[devicesConnected["speaker"]].peripheral.playNote("bell", speaker_settings.volume, 4)
-                end
-                clear()
-            end
-        else
-            local params = getWords(input)
-            local command = table.remove(params, 1)
-            if command then
-                if string.sub(input, 1, 2) == "! " then
-                    command = table.remove(params, 1)
-                    if command then
-                        command = string.lower(command)
-                        local closestID = getClosestPC()
-                        if closestID then
-                            local res = sendCommand(closestID, command, params)
-                            if res then
-                                nPrint(res, "blue")
-                            else
-                                nPrint("No response received!", "red")
-                            end
-                        else
-                            nPrint("PC not in range!", "red")
-                        end
-                    else
-                        nPrint("Usage: ![pcname/id] <command>", "red")
-                    end
-                elseif string.sub(input, 1, 1) == "!" then
-                    pcName = command:gsub('%!', '')
-                    command = table.remove(params, 1)
-                    if command then
-                        command = string.lower(command)
-                        if localComputers[tonumber(pcName)] then
-                            local res = sendCommand(tonumber(pcName), command, params)
-                            if res then
-                                nPrint(res, "blue")
-                            else
-                                nPrint("No response received!", "red")
-                            end
-                        elseif localComputers[getComputerID(pcName)] then
-                            local res = sendCommand(getComputerID(pcName), command, params)
-                            if res then
-                                nPrint(res, "blue")
-                            else
-                                nPrint("No response received!", "red")
-                            end
-                        else
-                            nPrint("Cannot find PC!", "red")
-                        end
-                    else
-                        nPrint("Usage: ![pcname/id] <command>", "red")
-                    end
-                else
-                    if coms[command] then
-                        if coms[command].isLocal then
-                            coms[command].exec(params)
-                        else
-                            nPrint("This command can only be run remotely.", "red")
-                        end
-                    else
-                        stat, err = pcall(shellRun, input)
-                        if err then
-                            nPrint(err, "red")
-                        end
-                    end
-                end
-            end
-        end
-    end
+local utils = require("util")
+local file = utils.loadModule("file")
+local history = {}
+term.setCursorPos(1, 1)
+term.clear()
+local shell = _G.shell
+local paths = file.readTable("/etc/paths.cfg")
+for i = 1, #paths do
+    shell.setPath(shell.path() .. ":" .. paths[i])
 end
-
-function shellRun(input)
-    shellRunning = true
-    local pathsToTry = {
-        "",
-        "home/bin",
-        "sys/bin"
-    }
-    local args = split(input, " ")
-    local command = table.remove(args, 1)
-    for k, path in pairs(pathsToTry) do
-        path = path .. "/" .. command
-        if fs.exists(path) or fs.exists(path .. ".lua") then
-            argsStr = ""
-            for i,v in ipairs(args) do
-                if i == 1 then
-                    argsStr = v
-                else
-                    argsStr = argsStr .. " " .. v
-                end
-            end
-            shell.run(path .. " " .. argsStr)
-            return
-            -- _G["..."] = argsStr
-            -- shellProg = require(path)
-            -- --unload it after it is done
-            -- shellProg = nil
-            -- package.loaded[path] = nil
-            -- _G[path] = nil
-            -- shellRunning = false
-            -- return
-        end
+shell.run("cd home")
+local currentDir = "/home"
+while true do
+    local dir = shell.dir()
+    if dir == "" then
+        dir = "/"
     end
+    --if home at beginning of path, replace with ~
+    if string.sub(dir, 1, 4) == "home" then
+        dir = "~" .. string.sub(dir, 5)
+    end
+
+    term.setTextColor(colors.lime)
+    term.write(os.getComputerLabel())
+    term.write("@")
+    term.write(os.getComputerID())
+    term.setTextColor(colors.white)
+    term.write(":" .. dir)
+    term.setTextColor(colors.white)
+    term.write("$")
+
+    local input = read(nil, history)
+    input = string.gsub(input, "~", "/home")
+    if input ~= history[#history] then
+        table.insert(history, input)
+    end
+    shell.run("cd /" .. currentDir)
     shell.run(input)
-    shellRunning = false
+    currentDir = shell.dir()
 end
