@@ -6,6 +6,7 @@ require("/lib/misc")
 local _locate = gps.locate
 local gps = {}
 gps.worldTiles = {}
+gps.interestingTiles = {}
 local gps_settings_path = "etc/gps/settings.cfg"
 local localComputers_path = "etc/gps/localComputers.dat"
 gps.settings = {
@@ -46,18 +47,28 @@ function gps.saveLocalComputers(computers)
     file.writeTable(localComputers_path, computers)
 end
 
-function gps.getClosestPC()
+function gps.getClosestPC(turtleOnly)
     local gpsPos = gps.getPosition()
     local localComputers = gps.getLocalComputers()
     if gpsPos then
         local closestDist = nil
         local closestID = nil
         for id, details in pairs(localComputers) do
-            if details.pos then
-                local dist = gps.getDistance(details.pos, gpsPos)
-                if closestDist == nil or dist < closestDist then
-                    closestDist = dist
-                    closestID = id
+            if turtleOnly then
+                if details.pos and details.isTurtle then
+                    local dist = gps.getDistance(gpsPos, details.pos)
+                    if not closestDist or dist < closestDist then
+                        closestDist = dist
+                        closestID = id
+                    end
+                end
+            else
+                if details.pos then
+                    local dist = gps.getDistance(details.pos, gpsPos)
+                    if closestDist == nil or dist < closestDist then
+                        closestDist = dist
+                        closestID = id
+                    end
                 end
             end
         end
@@ -66,10 +77,14 @@ function gps.getClosestPC()
     return nil
 end
 
+function round(x)
+    return x >= 0 and math.floor(x + 0.5) or math.ceil(x - 0.5)
+end
+
 local failedgpscount = 0
 local oldPos = nil
 local lastPoll = 0
-function gps.getPosition(round)
+function gps.getPosition(roundNumber)
     timeDiff = os.time() - lastPoll
     if timeDiff < 0 then
         timeDiff = -timeDiff
@@ -90,23 +105,23 @@ function gps.getPosition(round)
             end
         end
     end
-    if round then
+    if roundNumber and oldPos then
         return {
-            x = math.floor(oldPos.x),
-            y = math.floor(oldPos.y),
-            z = math.floor(oldPos.z)
+            x = round(oldPos.x),
+            y = round(oldPos.y),
+            z = round(oldPos.z)
         }
     else
         return oldPos
     end
 end
 
-function gps.getDistance(pos1, pos2, round)
+function gps.getDistance(pos1, pos2, roundNumber)
     local dx = pos1.x - pos2.x
     local dy = pos1.y - pos2.y
     local dz = pos1.z - pos2.z
-    if round then
-        return math.floor(math.sqrt(dx * dx + dy * dy + dz * dz))
+    if roundNumber then
+        return round(math.sqrt(dx * dx + dy * dy + dz * dz))
     else
         return math.sqrt(dx * dx + dy * dy + dz * dz)
     end
@@ -159,7 +174,6 @@ function gps.setWorldTiles(pos, radius, height, blocks) --very optimized sync
     -- round y
     my = math.floor(my)
     my2 = math.floor(my2)
-    local width = data.radius * 2 + 1
     for posX = mx, mx2 do
         for posY = my, my2 do
             for posZ = mz, mz2 do
@@ -194,19 +208,108 @@ function gps.setWorldTiles(pos, radius, height, blocks) --very optimized sync
     end
 end
 
-function gps.findBlock(blockSearch)
-    local gpsPos = gps.getPosition()
-    if not gpsPos then
+function gps.setInterestingTiles(pos, radius, height, name, blocks) --very optimized sync
+    --emulate get
+    local data = {}
+    data.pos = pos
+    data.radius = radius
+    data.height = height
+
+    data.pos.x = math.floor(data.pos.x)
+    data.pos.y = math.floor(data.pos.y)
+    data.pos.z = math.floor(data.pos.z)
+
+    local mx = data.pos.x - data.radius
+    local my = data.pos.y - data.height
+    local mz = data.pos.z - data.radius
+    local mx2 = data.pos.x + data.radius
+    local my2 = data.pos.y + data.height
+    local mz2 = data.pos.z + data.radius
+    -- max world height is 320
+    -- min world height is -64 ^ 2
+    if my > 319 then
+        my = 319
+    end
+    if my < -63 then
+        my = -63
+    end
+    if my2 > 319 then
+        my2 = 319
+    end
+    if my2 < -63 then
+        my2 = -63
+    end
+    -- round y
+    my = math.floor(my)
+    my2 = math.floor(my2)
+    for posX = mx, mx2 do
+        for posY = my, my2 do
+            for posZ = mz, mz2 do
+                if blocks[posX] and blocks[posX][posY] and blocks[posX][posY][posZ] then
+                    if not gps.interestingTiles[name] then
+                        gps.interestingTiles[name] = {}
+                    end
+                    if not gps.interestingTiles[name][posX] then
+                        gps.interestingTiles[name][posX] = {}
+                    end
+                    if not gps.interestingTiles[name][posX][posY] then
+                        gps.interestingTiles[name][posX][posY] = {}
+                    end
+                    if not gps.interestingTiles[name][posX][posY][posZ] then
+                        gps.interestingTiles[name][posX][posY][posZ] = 1
+                    end
+                elseif gps.interestingTiles[name] and gps.interestingTiles[name][posX] and
+                    gps.interestingTiles[name][posX][posY] and gps.interestingTiles[name][posX][posY][posZ] then
+                    gps.interestingTiles[name][posX][posY][posZ] = nil --shitty map compression lol
+                    if (not next(gps.interestingTiles[name][posX][posY])) then
+                        gps.interestingTiles[name][posX][posY] = nil
+                        if (not next(gps.interestingTiles[name][posX])) then
+                            gps.interestingTiles[name][posX] = nil
+                            if (not next(gps.interestingTiles[name])) then
+                                gps.interestingTiles[name] = nil
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- local getBlockNameFromPartialName_cache = {}
+function getBlockNameFromPartialName(partialName)
+    if gps.interestingTiles[partialName] then
+        return partialName
+    end
+    -- if getBlockNameFromPartialName_cache[partialName] then
+    --     return getBlockNameFromPartialName_cache[partialName]
+    -- end
+    for i, v in pairs(gps.interestingTiles) do
+        if string.find(i, partialName) then
+            -- getBlockNameFromPartialName_cache[partialName] = i
+            return i
+        end
+    end
+    return nil
+end
+
+function gps.findBlock(name)
+    local blockName = getBlockNameFromPartialName(name)
+    if not blockName then
         return nil
     end
-    if not gps.worldTiles then
+    if not gps.interestingTiles then
+        return nil
+    end
+    local gpsPos = gps.getPosition()
+    if not gpsPos then
         return nil
     end
     local x = math.floor(gpsPos.x)
     local y = math.floor(gpsPos.y)
     local z = math.floor(gpsPos.z)
     local r = 1
-    local maxR = 64
+    local maxR = 256
     local searchCount = 0
     for r = 1, maxR do
         local x2 = x - r
@@ -215,10 +318,13 @@ function gps.findBlock(blockSearch)
         local x2e = x2 + r * 2
         local y2e = y2 + r * 2
         local z2e = z2 + r * 2
+        if y2e < -63 then
+            y2e = -63
+        end
         for x3 = x2, x2e do
-            if gps.worldTiles[x3] then
+            if gps.interestingTiles[blockName][x3] then
                 for y3 = y2, y2e do
-                    if gps.worldTiles[x3][y3] then
+                    if gps.interestingTiles[blockName][x3][y3] then
                         for z3 = z2, z2e do
                             if x3 > x2 and x3 < x2e and y3 > y2 and y3 < y2e then -- inside on the x slice
                                 if z3 > z2 then -- inside on the z slice
@@ -226,12 +332,8 @@ function gps.findBlock(blockSearch)
                                 end
                             end
                             searchCount = searchCount + 1
-                            if gps.worldTiles[x3][y3][z3] then
-                                local block = gps.worldTiles[x3][y3][z3]
-                                if string.find(block.name, blockSearch) then
-                                    -- print(searchCount .. " " .. r)
-                                    return block
-                                end
+                            if gps.interestingTiles[blockName][x3][y3][z3] then
+                                return { x = x3, y = y3, z = z3, name = name }
                             end
                         end
                     end
@@ -240,9 +342,6 @@ function gps.findBlock(blockSearch)
         end
     end
     return nil
-    -- if gps.worldTiles[x2] and gps.worldTiles[x2][y2] and gps.worldTiles[x2][y2][z2] then
-    --     local block = gps.worldTiles[x2][y2][z2]
-    -- end
 end
 
 function gps.getWorldTiles(radius, height)
@@ -257,20 +356,21 @@ function gps.getWorldTiles(radius, height)
     return gps.worldTiles
 end
 
-function gps.getComputerID(name)
-    local lComps = gps.getLocalComputers()
-    for i, comp in pairs(lComps) do
-        if comp.name == name then
-            return comp.id
-        end
+function gps.getInterestingTiles(radius, height, name, gpsPos)
+    if not gpsPos then
+        gpsPos = gps.getPosition()
     end
-    return nil
-end
-
-function gps.getComputerName(id)
-    local lComps = gps.getLocalComputers()
-    if lComps[id] then
-        return lComps[id].name
+    if gpsPos then
+        local res = net.emit("NodeOS_getInterestingTiles",
+            { radius = radius, height = height, pos = gpsPos, name = name },
+            settings.NodeOSMasterID)
+        if res and res.name then
+            gps.setInterestingTiles(gpsPos, radius, height, res.name, res.tiles)
+            return {
+                name = res.name,
+                tiles = gps.interestingTiles[res.name]
+            }
+        end
     end
     return nil
 end
@@ -302,6 +402,37 @@ function gps.getAllWorldTiles()
         end
     end
     return gps.worldTiles
+end
+
+function gps.getAllInterestingTiles(name)
+    local res = net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
+        settings.NodeOSMasterID)
+    if res and res.name then
+        if not gps.interestingTiles[res.name] then
+            gps.interestingTiles[res.name] = {}
+        end
+        gps.interestingTiles[res.name] = res.tiles
+        return res
+    end
+    return nil
+end
+
+function gps.getComputerID(name)
+    local lComps = gps.getLocalComputers()
+    for i, comp in pairs(lComps) do
+        if comp.name == name then
+            return comp.id
+        end
+    end
+    return nil
+end
+
+function gps.getComputerName(id)
+    local lComps = gps.getLocalComputers()
+    if lComps[id] then
+        return lComps[id].name
+    end
+    return nil
 end
 
 return gps
