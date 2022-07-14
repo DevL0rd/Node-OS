@@ -10,12 +10,19 @@
         minimize = 16
     },
     desktop = {
-        background = 2048
+        background = 128
+    },
+    titlebar = {
+        background = 2048,
+        text = 1
     },
     menu = {
         background = 32768,
         text = 1,
-        textSecondary = 256
+        textSecondary = 256,
+        buttonBG = 8192,
+        buttonText = 1,
+        buttonBG_Selected = 32,
     },
     main = {
         background = 32768,

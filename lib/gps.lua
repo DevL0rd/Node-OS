@@ -453,35 +453,6 @@ function gps.getInterestingTiles(radius, height, name, gpsPos)
     return nil
 end
 
-function gps.getAllWorldTiles()
-    local tiles = net.emit("NodeOS_getWorldTiles", { all = true },
-        settings.master)
-    if tiles then
-        for x, y in pairs(tiles) do
-            for y, z in pairs(y) do
-                for z, name in pairs(z) do
-                    if not gps.worldTiles[x] then
-                        gps.worldTiles[x] = {}
-                    end
-                    if not gps.worldTiles[x][y] then
-                        gps.worldTiles[x][y] = {}
-                    end
-                    if not gps.worldTiles[x][y][z] then
-                        gps.worldTiles[x][y][z] = {}
-                    end
-                    local block = {}
-                    block.x = x
-                    block.y = y
-                    block.z = z
-                    block.name = name
-                    gps.worldTiles[x][y][z] = block
-                end
-            end
-        end
-    end
-    return gps.worldTiles
-end
-
 function gps.getAllInterestingTiles(name)
     local res = net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
         settings.master)

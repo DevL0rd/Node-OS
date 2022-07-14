@@ -79,7 +79,7 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             title = "Shell",
             insettings = {
                 height = 12,
-                maximazed = true,
+                maximized = true,
                 title = "Shell",
                 width = 30,
             },
@@ -90,7 +90,7 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             insettings = {
                 width = 30,
                 height = 12,
-                maximazed = true,
+                maximized = true,
                 title = "Map"
             }
         },
@@ -108,7 +108,7 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             title = "Settings",
             insettings = {
                 height = 17,
-                maximazed = true,
+                maximized = true,
                 title = "Settings",
                 width = 40,
             },

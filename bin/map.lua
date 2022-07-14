@@ -217,8 +217,6 @@ function renderMap(x, y)
                         termUtils.write(" ", rx, ry, "white", "white")
                     end
                 end
-
-
             end
             rx = rx + 1
         end
@@ -311,7 +309,7 @@ function liveMapThread()
                 renderMap(1, 1)
             end
         end
-        os.sleep(0.3)
+        os.sleep(0.1)
     end
 end
 
@@ -336,9 +334,16 @@ function inputThread()
     end
 end
 
+local lastFetchPosition = nil
 function worldTilesUpdateThread()
     while true do
-        worldTiles = gps.getWorldTiles(16, 16)
+        local gpsPos = gps.getPosition()
+        if gpsPos then
+            if not lastFetchPosition or gps.getDistance(lastFetchPosition, gpsPos) > 6 then
+                worldTiles = gps.getWorldTiles(12, 12, gpsPos)
+                lastFetchPosition = gpsPos
+            end
+        end
         sleep(0.5)
     end
 end
@@ -358,7 +363,6 @@ function findBlockThread()
 end
 
 function startMap()
-    worldTiles = gps.getAllWorldTiles()
     parallel.waitForAny(liveMapThread, inputThread, worldTilesUpdateThread, findBlockThread)
 end
 

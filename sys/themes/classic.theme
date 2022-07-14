@@ -12,22 +12,29 @@
     desktop = {
         background = 512
     },
+    titlebar = {
+        background = 2048,
+        text = 1,
+    },
     menu = {
         background = 128,
         text = 1,
-        textSecondary = 256
+        textSecondary = 256,
+        buttonBG = 8192,
+        buttonText = 1,
+        buttonBG_Selected = 32,
     },
     main = {
         background = 1,
         backgroundSecondary = 256,
         text = 128,
         textBold = 32768,
-        textSecondary = 256
+        textSecondary = 256,
     },
     userInput = {
         background = 256,
         text = 128,
         backgroundSelected = 128,
-        textSelected = 256
+        textSelected = 256,
     }
 }

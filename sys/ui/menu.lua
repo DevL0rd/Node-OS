@@ -82,12 +82,12 @@ local function drawUI()
     pinnedWindow.setElements({})
 
     local pos = 1
-    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.lightGray, theme.menu.background
+    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
       , none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(2, pos, "Pinned", colors.white, theme.menu.background, none))
     pos = pos + 1
-    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.lightGray, theme.menu.background
+    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
       , none))
     pos = pos + 1
     for i, v in pairs(pinned) do
@@ -111,12 +111,12 @@ local function drawUI()
     end
 
     pos = pos + 1
-    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.lightGray, theme.menu.background
+    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
       , none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(2, pos, "Recent", colors.white, theme.menu.background, none))
     pos = pos + 1
-    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.lightGray, theme.menu.background
+    pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
       , none))
     pos = pos + 1
     for i, v in pairs(recent) do
@@ -147,24 +147,32 @@ local function drawUI()
     searchWindow.setElements({})
     if #searchResults == 0 then
       searchWindow.addElement(scroll.createElement(math.ceil(searchWindow.getWidth() / 2 - string.len("No results") / 2)
-        , pos, "No results.", colors.lightGray, theme.menu.background, function() end))
+        , pos, "No results.", colors.gray, theme.menu.background, function() end))
     else
       searchWindow.addElement(scroll.createElement(1, pos, "Found " .. #searchResults .. " results", colors.white,
         theme.menu.background, none))
       pos = pos + 1
-      searchWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.lightGray,
+      searchWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray,
         theme.menu.background, none))
       pos = pos + 1
 
       for i, v in pairs(searchResults) do
         local function addFunction()
           wm.endProcess(id)
-          wm.selectProcess(wm.createProcess(v, {}))
+          -- if not lua file
+          if v:sub(-4) ~= ".lua" then
+            v = "/rom/programs/edit.lua " .. v
+          end
+          wm.selectProcess(wm.createProcess(v, {
+            maximized = true
+          }))
           cleanRecent(v)
           table.insert(recent, 1, {
             name = fs.getName(v),
             path = v,
-            settings = {}
+            settings = {
+              maximized = true
+            }
           })
           updateRecent()
         end
@@ -176,10 +184,10 @@ local function drawUI()
         if fs.getDir(v) == "" then
           text = "Root"
         end
-        searchWindow.addElement(scroll.createElement(2, pos, draw.overflow(text, sw), colors.lightGray,
+        searchWindow.addElement(scroll.createElement(2, pos, draw.overflow(text, sw), colors.gray,
           theme.menu.background, addFunction))
         pos = pos + 1
-        searchWindow.addElement(scroll.createElement(2, pos, "", colors.lightGray, theme.menu.background, function() end))
+        searchWindow.addElement(scroll.createElement(2, pos, "", colors.gray, theme.menu.background, function() end))
         pos = pos + 1
       end
       searchWindow.removeElement(#searchWindow.getElements())

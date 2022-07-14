@@ -69,12 +69,11 @@ function tileUpdateThread()
     end
 end
 
-local gatherCount = nil
 function butlerThread()
     turtleUtils.calibrate()
     while true do
         if butler_settings.status == "findingBlocks" and turtleUtils.hasNoSlots() or
-            (gatherCount and butler_settings.pointsTraveled == gatherCount) then
+            (butler_settings.gatherCount and butler_settings.pointsTraveled == butler_settings.gatherCount) then
             statusMessage = "Inventory full, returning to home."
             butler_settings.status = "returning"
             butler_settings.navto = deepcopy(butler_settings.home)

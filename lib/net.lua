@@ -31,7 +31,7 @@ function net.savePairedDevices(clients)
 end
 
 function net.emit(command, data, cId, IgnoreResponse)
-    if not cId then
+    if cId == nil or cId == false then
         rednet.broadcast({ data = data }, command)
         return
     end
@@ -47,12 +47,9 @@ function net.emit(command, data, cId, IgnoreResponse)
 end
 
 function net.respond(cid, token, data)
-    -- print(cid)
-    -- print(token)
-    -- for i, v in pairs(data) do
-    --     print(i, v)
-    -- end
-    -- sleep(3)
+    if not token then
+        return
+    end
     rednet.send(cid, data, "NodeOS_Response_" .. token)
 end
 

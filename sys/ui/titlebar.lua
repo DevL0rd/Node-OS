@@ -4,38 +4,60 @@ local ok, err = pcall(function()
   local w = term.getSize()
   local running = {}
   local procList
-
+  local gps = require("/lib/gps")
+  local net = require("/lib/net")
   local util = require("/lib/util")
   local nfte = require("/lib/nfte")
   local file = util.loadModule("file")
+  local sets = require("settings").settings
   local theme = _G.wm.getTheme()
   local wm = _G.wm
 
-  for i, v in pairs(_G) do
-    write(i .. " ")
-  end
-
-  local function drawTime()
+  local gpsPos = nil
+  local isConnected = false
+  local function drawStatusArea()
     local time = " " .. textutils.formatTime(os.time(), false)
-    term.setTextColor(theme.menu.textSecondary)
-    term.setCursorPos(w - string.len(time) + 1, 1)
+    term.setTextColor(theme.titlebar.text)
+    local renderX = w - string.len(time) + 1
+    term.setCursorPos(renderX, 1)
     term.write(time)
+    if gpsPos then
+      term.setTextColor(colors["green"])
+    else
+      term.setTextColor(colors["red"])
+    end
+    renderX = renderX - 3
+    term.setCursorPos(renderX, 1)
+    term.write("GPS")
+    if isConnected then
+      term.setTextColor(colors["green"])
+    else
+      term.setTextColor(colors["red"])
+    end
+    renderX = renderX - 4
+    term.setCursorPos(renderX, 1)
+    term.write("NET")
+    term.setTextColor(theme.menu.textSecondary)
+
   end
 
   local function draw()
     procList = wm.listProcesses()
-    term.setBackgroundColor(theme.menu.background)
+    term.setBackgroundColor(theme.titlebar.background)
     term.clear()
-    drawTime()
+    drawStatusArea()
     term.setCursorPos(1, 1)
     if menuPID and procList[menuPID] then
-      term.setBackgroundColor(theme.menu.background)
+      term.setBackgroundColor(theme.menu.buttonBG_Selected)
       term.setTextColor(theme.menu.text)
     else
+      term.setBackgroundColor(theme.menu.buttonBG)
+      term.setTextColor(theme.menu.buttonText)
       menuPID = nil
     end
-    term.write("@ ")
-
+    term.write(" N ")
+    term.setBackgroundColor(theme.titlebar.background)
+    term.write(" ")
     for i, v in pairs(procList) do
       if not v.dontShowInTitlebar then
         local x, y = term.getCursorPos()
@@ -61,7 +83,7 @@ local ok, err = pcall(function()
       draw()
       if e[1] == "mouse_click" then
         local m, x, y = e[2], e[3], e[4]
-        if x == 1 and y == 1 then
+        if x >= 1 and x <= 3 and y == 1 then
           if menuPID and wm.listProcesses()[menuPID] == nil then
             menuPID = nil
           else
@@ -103,14 +125,38 @@ local ok, err = pcall(function()
     end
   end
 
-  local function time()
+  local function statusThread()
     while true do
-      drawTime()
+      drawStatusArea()
       sleep(1)
     end
   end
 
-  parallel.waitForAll(time, event)
+  local function gps_thread()
+    while true do
+      gpsPos = gps.getPosition()
+      sleep(1)
+    end
+  end
+
+  local function net_thread()
+    if os.getComputerID() == sets.master then
+      isConnected = true
+      return
+    end
+    while true do
+      local resp = net.emit("NodeOS_ping", nil, sets.master)
+      if resp then
+        isConnected = true
+      else
+        isConnected = false
+      end
+      sleep(1)
+    end
+  end
+
+  parallel.waitForAll(statusThread, gps_thread, event, net_thread)
+
 end)
 
 if not ok then os.queueEvent("wm_titlebardeath") end

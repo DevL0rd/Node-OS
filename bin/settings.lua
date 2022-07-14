@@ -24,7 +24,8 @@ if command == "set" then
         termUtils.print("Please enter a new password:")
         local newPassword = read("*")
         if newPassword == "" then
-            settings.password = ""
+            settings.settings.password = ""
+            settings.saveSettings(settings.settings)
         else
             termUtils.print("Please enter the password again:")
             local pass2 = read("*")
@@ -33,18 +34,20 @@ if command == "set" then
                 termUtils.print("Passwords do not match.", "red")
             else
                 settings.settings.password = sha256(newPassword)
+                settings.saveSettings(settings.settings)
             end
         end
     elseif setting == "pin" then
         settings.settings.pin = value
         termUtils.print("Pin set! A reboot is required for network to get changes.", "yellow")
+        settings.saveSettings(settings.settings)
     elseif setting == "master" then
         settings.settings.master = value
         termUtils.print("Master ID set! A reboot is required for network to get changes.", "yellow")
+        settings.saveSettings(settings.settings)
     else
         termUtils.print("Unknown setting!", "red")
     end
-    settings.saveSettings(settings.settings)
 elseif command == "get" then
     local setting = args[2]
     if setting == "name" then

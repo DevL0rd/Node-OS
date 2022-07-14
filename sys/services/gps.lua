@@ -102,119 +102,85 @@ if os.getComputerID() == settings.master then
         interestingTilesBlacklist = file.readTable(interestingTilesBlacklist_path)
     end
     interestingTilesBlacklist = Set(interestingTilesBlacklist)
-    local serverTiles_path = "etc/map/serverTiles.dat"
-    local serverTiles = {}
-    local serverTiles_changed = false
-    if not fs.exists(serverTiles_path) then
-        file.writeTable(serverTiles_path, serverTiles)
-    else
-        serverTiles = file.readTable(serverTiles_path)
-    end
-    local interestingTiles_path = "etc/map/interestingTiles.dat"
-    local interestingTiles = {}
-    local interestingTiles_changed = false
+    local interestingTiles_path = "etc/map/interestingTiles"
     if not fs.exists(interestingTiles_path) then
-        file.writeTable(interestingTiles_path, interestingTiles)
-    else
-        interestingTiles = file.readTable(interestingTiles_path)
+        fs.makeDir(interestingTiles_path)
     end
+    local interestingTiles = {}
+
     function listen_getWorldTiles()
         while true do
             local cid, msg = rednet.receive("NodeOS_getWorldTiles")
             local data = msg.data
-            if data.all then
-                net.respond(cid, msg.token, serverTiles)
-            else
-                -- for blocks in data.radius
-                if data.radius > 31 then
-                    data.radius = 31
-                end
-                local tmpTiles = {}
-                data.pos.x = math.floor(data.pos.x)
-                data.pos.y = math.floor(data.pos.y)
-                data.pos.z = math.floor(data.pos.z)
+            -- for blocks in data.radius
+            if data.radius > 31 then
+                data.radius = 31
+            end
+            local tmpTiles = {}
+            data.pos.x = math.floor(data.pos.x)
+            data.pos.y = math.floor(data.pos.y)
+            data.pos.z = math.floor(data.pos.z)
 
-                local mx = data.pos.x - data.radius
-                local my = data.pos.y - data.height
-                local mz = data.pos.z - data.radius
-                local mx2 = data.pos.x + data.radius
-                local my2 = data.pos.y + data.height
-                local mz2 = data.pos.z + data.radius
-                -- max world height is 320
-                -- min world height is -64 ^ 2
-                if my > 319 then
-                    my = 319
-                end
-                if my < worldDepthLimit then
-                    my = worldDepthLimit
-                end
-                if my2 > 319 then
-                    my2 = 319
-                end
-                if my2 < worldDepthLimit then
-                    my2 = worldDepthLimit
-                end
-                -- round y
-                my = math.floor(my)
-                my2 = math.floor(my2)
-                local width = data.radius * 2 + 1
-                --take slices by height
-                for posY = my, my2 do
-                    local blockSlice = commands.getBlockInfos(mx, posY, mz, mx2, posY, mz2)
-                    count = 0
-                    for posX = mx, mx2 do
-                        for posZ = mz, mz2 do
-                            -- x + z*width + y*depth*depth
-                            local ix = math.floor(posX - mx)
-                            -- local iy = math.floor(posY - my)+1
-                            local iz = math.floor(posZ - mz)
-                            local index = ix + iz * width + 1
-                            -- print(ix .. " " .. iy .. " " .. iz .. " -- " .. index)
-                            -- sleep(1)
-                            local block = blockSlice[index]
-                            local bm = {}
-                            if block.name ~= "minecraft:air" then
-                                name = block.name
-                                -- remove minecraft: from string in name if it is there
-                                if string.find(name, "minecraft:") then
-                                    name = string.sub(name, string.len("minecraft:") + 1)
-                                end
-                                count = count + 1
-                                if not tmpTiles[posX] then
-                                    tmpTiles[posX] = {}
-                                end
-                                if not tmpTiles[posX][posY] then
-                                    tmpTiles[posX][posY] = {}
-                                end
-                                if not tmpTiles[posX][posY][posZ] then
-                                    tmpTiles[posX][posY][posZ] = {}
-                                end
-                                tmpTiles[posX][posY][posZ] = name
-                                if not serverTiles[posX] then
-                                    serverTiles[posX] = {}
-                                end
-                                if not serverTiles[posX][posY] then
-                                    serverTiles[posX][posY] = {}
-                                end
-                                if not serverTiles[posX][posY][posZ] then
-                                    serverTiles[posX][posY][posZ] = {}
-                                end
-                                serverTiles[posX][posY][posZ] = name
-                            elseif serverTiles[posX] and serverTiles[posX][posY] and serverTiles[posX][posY][posZ] then
-                                serverTiles[posX][posY][posZ] = nil --shitty map compression lol
-                                if (not next(serverTiles[posX][posY])) then
-                                    serverTiles[posX][posY] = nil
-                                    if (not next(serverTiles[posX])) then
-                                        serverTiles[posX] = nil
-                                    end
-                                end
+            local mx = data.pos.x - data.radius
+            local my = data.pos.y - data.height
+            local mz = data.pos.z - data.radius
+            local mx2 = data.pos.x + data.radius
+            local my2 = data.pos.y + data.height
+            local mz2 = data.pos.z + data.radius
+            -- max world height is 320
+            -- min world height is -64 ^ 2
+            if my > 319 then
+                my = 319
+            end
+            if my < worldDepthLimit then
+                my = worldDepthLimit
+            end
+            if my2 > 319 then
+                my2 = 319
+            end
+            if my2 < worldDepthLimit then
+                my2 = worldDepthLimit
+            end
+            -- round y
+            my = math.floor(my)
+            my2 = math.floor(my2)
+            local width = data.radius * 2 + 1
+            --take slices by height
+            for posY = my, my2 do
+                local blockSlice = commands.getBlockInfos(mx, posY, mz, mx2, posY, mz2)
+                count = 0
+                for posX = mx, mx2 do
+                    for posZ = mz, mz2 do
+                        -- x + z*width + y*depth*depth
+                        local ix = math.floor(posX - mx)
+                        -- local iy = math.floor(posY - my)+1
+                        local iz = math.floor(posZ - mz)
+                        local index = ix + iz * width + 1
+                        -- print(ix .. " " .. iy .. " " .. iz .. " -- " .. index)
+                        -- sleep(1)
+                        local block = blockSlice[index]
+                        if block.name ~= "minecraft:air" then
+                            name = block.name
+                            -- remove minecraft: from string in name if it is there
+                            if string.find(name, "minecraft:") then
+                                name = string.sub(name, string.len("minecraft:") + 1)
                             end
+                            count = count + 1
+                            if not tmpTiles[posX] then
+                                tmpTiles[posX] = {}
+                            end
+                            if not tmpTiles[posX][posY] then
+                                tmpTiles[posX][posY] = {}
+                            end
+                            if not tmpTiles[posX][posY][posZ] then
+                                tmpTiles[posX][posY][posZ] = {}
+                            end
+                            tmpTiles[posX][posY][posZ] = name
                         end
                     end
                 end
-                serverTiles_changed = true
-                net.respond(cid, msg.token, tmpTiles)
             end
+            net.respond(cid, msg.token, tmpTiles)
         end
     end
 
@@ -308,8 +274,11 @@ if os.getComputerID() == settings.master then
                                 if not interestingTilesBlacklist[block.name] then
                                     count = count + 1
                                     if not interestingTiles[block.name] then
-                                        interestingTiles[block.name] = {}
+                                        interestingTiles[block.name] = {
+                                            changed = true
+                                        }
                                     end
+                                    interestingTiles[block.name].changed = true
                                     if not interestingTiles[block.name][posX] then
                                         interestingTiles[block.name][posX] = {}
                                     end
@@ -318,7 +287,6 @@ if os.getComputerID() == settings.master then
                                     end
                                     if not interestingTiles[block.name][posX][posY][posZ] then
                                         interestingTiles[block.name][posX][posY][posZ] = 1
-                                        interestingTiles_changed = true
                                     end
                                     if not blockName then
                                         if string.find(block.name, data.name) then
@@ -370,18 +338,35 @@ if os.getComputerID() == settings.master then
 
     function saveServerTiles()
         while true do
-            if interestingTiles_changed then
-                file.writeTable(interestingTiles_path, interestingTiles)
-                interestingTiles_changed = false
-            end
-            if serverTiles_changed then
-                file.writeTable(serverTiles_path, serverTiles)
-                serverTiles_changed = false
+            for i, v in pairs(interestingTiles) do
+                if v.changed then
+                    v.changed = false
+                    -- replace : with *col*
+                    local fileName = string.gsub(i, ":", "*col*")
+                    local file = fs.open(interestingTiles_path .. "/" .. fileName .. ".dat", "w")
+                    file.write(textutils.serialize(v))
+                    file.close()
+                end
             end
             sleep(60)
         end
     end
 
+    function loadServerTiles()
+        --for every .dat file in interestingTiles_path
+        for i, v in pairs(fs.list(interestingTiles_path)) do
+            if string.find(v, ".dat") then
+                local file = fs.open(interestingTiles_path .. "/" .. v, "r")
+                local data = textutils.unserialize(file.readAll())
+                file.close()
+                local key = string.sub(v, 1, -5)
+                key = string.gsub(key, "*col*", ":")
+                interestingTiles[key] = data
+            end
+        end
+    end
+
+    loadServerTiles()
     parallel.addOSThread(saveServerTiles)
 end
 
