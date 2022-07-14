@@ -11,9 +11,15 @@ function listen_pair()
                 local pairedClients = net.getPairedClients()
                 pairedClients[cId] = true
                 net.savePairedClients(pairedClients)
-                net.respond(cId, msg.token, { success = true })
+                net.respond(cId, msg.token, {
+                    success = true,
+                    message = os.getComputerLabel() .. "@" .. os.getComputerID() .. " paired successfully!"
+                })
             else
-                net.respond(cId, msg.token, { success = false })
+                net.respond(cId, msg.token, {
+                    success = false,
+                    message = "Invalid pin!"
+                })
             end
         end
     end
@@ -28,7 +34,10 @@ function listen_unpair()
             local pairedClients = net.getPairedClients()
             pairedClients[cId] = nil
             net.savePairedClients(pairedClients)
-            net.respond(cId, msg.token, { success = true })
+            net.respond(cId, msg.token, {
+                success = true,
+                message = os.getComputerLabel() .. "@" .. os.getComputerID() .. " paired successfully!"
+            })
         end
     end
 end
@@ -39,7 +48,7 @@ parallel.addOSThread(listen_unpair)
 function listen_ping()
     while true do
         local cId, msg = rednet.receive("NodeOS_ping")
-        net.respond(cId, msg.token, { success = true })
+        net.respond(cId, msg.token, { success = true, message = "Pong!" })
     end
 end
 

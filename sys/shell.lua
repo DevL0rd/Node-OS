@@ -1,6 +1,18 @@
 local utils = require("util")
 local file = utils.loadModule("file")
+local history_path = "etc/shell/history.dat"
 local history = {}
+if fs.exists(history_path) then
+    history = file.readTable(history_path)
+end
+function addHistory(cmd)
+    table.insert(history, cmd)
+    if #history > 100 then
+        table.remove(history, 1)
+    end
+    file.writeTable(history_path, history)
+end
+
 term.setCursorPos(1, 1)
 term.clear()
 local shell = _G.shell
@@ -8,8 +20,8 @@ local paths = file.readTable("/etc/paths.cfg")
 for i = 1, #paths do
     shell.setPath(shell.path() .. ":" .. paths[i])
 end
-shell.run("cd home")
-local currentDir = "/home"
+shell.run("cd /home")
+local currentDir = "home"
 while true do
     local dir = shell.dir()
     if dir == "" then
@@ -31,9 +43,7 @@ while true do
 
     local input = read(nil, history)
     input = string.gsub(input, "~", "/home")
-    if input ~= history[#history] then
-        table.insert(history, input)
-    end
+    addHistory(input)
     shell.run("cd /" .. currentDir)
     shell.run(input)
     currentDir = shell.dir()

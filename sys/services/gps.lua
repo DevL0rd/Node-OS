@@ -26,6 +26,7 @@ function giveLocalComputerDetails_thread()
                 name = os.getComputerLabel(),
                 id = os.getComputerID(),
                 isTurtle = turtle ~= nil,
+                groups = settings.groups,
                 time = os.time()
             })
         end
@@ -54,7 +55,7 @@ function Set(list)
     return set
 end
 
-if os.getComputerID() == settings.NodeOSMasterID then
+if os.getComputerID() == settings.master then
     local interestingTilesBlacklist_path = "etc/map/interestingTilesBlacklist.cfg"
     local interestingTilesBlacklist = {
         "minecraft:bedrock",

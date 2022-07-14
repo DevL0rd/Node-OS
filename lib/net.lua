@@ -47,7 +47,29 @@ function net.emit(command, data, cId, IgnoreResponse)
 end
 
 function net.respond(cid, token, data)
+    -- print(cid)
+    -- print(token)
+    -- for i, v in pairs(data) do
+    --     print(i, v)
+    -- end
+    -- sleep(3)
     rednet.send(cid, data, "NodeOS_Response_" .. token)
+end
+
+function net.isClientPaired(cid)
+    local clients = net.getPairedClients()
+    if clients[cid] then
+        return true
+    end
+    return false
+end
+
+function net.isDevicePaired(cid)
+    local devices = net.getPairedDevices()
+    if devices[cid] then
+        return true
+    end
+    return false
 end
 
 function net.unpair(cId)

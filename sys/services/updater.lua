@@ -12,7 +12,7 @@ else
     file.close()
 end
 
-if os.getComputerID() == settings.NodeOSMasterID then
+if os.getComputerID() == settings.master then
 
     function listen_publishUpdate()
         while true do
@@ -78,7 +78,7 @@ else
             if isPublishing then
                 return
             end
-            res = net.emit("NodeOS_getVer", nil, settings.NodeOSMasterID)
+            res = net.emit("NodeOS_getVer", nil, settings.master)
             if res then
                 local file = fs.open("sys/ver.txt", "r")
                 ver = tonumber(file.readAll())
@@ -86,7 +86,7 @@ else
                 if res.data ~= ver then
                     print("Update available! NodeOS version is " .. res.data .. ".")
                     print("Downloading update...")
-                    res = net.emit("NodeOS_getUpdate", nil, settings.NodeOSMasterID)
+                    res = net.emit("NodeOS_getUpdate", nil, settings.master)
                     if res then
                         if res.success then
                             print("Installing update...")

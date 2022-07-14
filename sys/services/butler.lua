@@ -7,11 +7,7 @@ local file = util.loadModule("file")
 
 local butler_settings_path = "etc/butler/settings.cfg"
 local butler_settings = {
-    home = {
-        x = 0,
-        y = 0,
-        z = 0
-    },
+    home = nil,
     status = "idle",
     navto = nil,
     navtoid = nil,
@@ -81,7 +77,7 @@ function butlerThread()
             (gatherCount and butler_settings.pointsTraveled == gatherCount) then
             statusMessage = "Inventory full, returning to home."
             butler_settings.status = "returning"
-            butler_settings.navto = butler_settings.home
+            butler_settings.navto = deepcopy(butler_settings.home)
             saveButler()
         end
         if butler_settings.status == "findingBlocks" then
@@ -95,10 +91,11 @@ function butlerThread()
                     closestBlock.name ..
                     " at " .. closestBlock.x .. "," .. closestBlock.y .. "," .. closestBlock.z .. "."
                 butler_settings.navto = { x = closestBlock.x, y = closestBlock.y, z = closestBlock.z }
+                saveButler()
             else
                 statusMessage = "Can't find block, returning home."
                 butler_settings.status = "returning"
-                butler_settings.navto = butler_settings.home
+                butler_settings.navto = deepcopy(butler_settings.home)
                 saveButler()
             end
         elseif butler_settings.navtoid then
@@ -114,7 +111,7 @@ function butlerThread()
             turtleUtils.goTo(butler_settings.navto, true, butler_settings.navname)
             butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
             butler_settings.navto = nil
-            statusMessage = "Waiting for command..."
+            -- statusMessage = "Action Complete! Waiting for command..."
             saveButler()
         end
         sleep(0.2)
@@ -129,24 +126,38 @@ function listen_find()
     while true do
         local cid, msg = rednet.receive("NodeOS_butlerFind")
         local pairedClients = net.getPairedClients()
-        if not turtle then
-            net.respond(cid, msg.token, {
-                success = false,
-                message = "This is not a turtle!"
-            })
-        end
         if pairedClients[cid] then
-            local data = msg.data
-            resetState()
-            if data.name then
-                butler_settings.navname = data.name
-                if data.count then
-                    butler_settings.gatherCount = data.count
+            if turtle then
+                if butler_settings.home then
+                    local data = msg.data
+                    resetState()
+                    if not turtleUtils.hasNoSlots() then
+                        butler_settings.navname = data.name
+                        if data.count then
+                            butler_settings.gatherCount = data.count
+                        end
+                        butler_settings.status = "findingBlocks"
+                        statusMessage = "Looking for '" .. data.name .. "'..."
+                        saveButler()
+                        net.respond(cid, msg.token, {
+                            success = true
+                        })
+                    else
+                        net.respond(cid, msg.token, {
+                            success = false,
+                            message = "Inventory full!"
+                        })
+                    end
+                else
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "No home set! Please set a home location with the sethome command."
+                    })
                 end
-                butler_settings.status = "findingBlocks"
-                statusMessage = "Looking for '" .. data.name .. "'..."
+            else
                 net.respond(cid, msg.token, {
-                    success = true
+                    success = false,
+                    message = "This is not a turtle!"
                 })
             end
         else
@@ -165,25 +176,26 @@ function listen_sethome()
     while true do
         local cid, msg = rednet.receive("NodeOS_setHome")
         local pairedClients = net.getPairedClients()
-        if not turtle then
-            net.respond(cid, msg.token, {
-                success = false,
-                message = "This is not a turtle!"
-            })
-        end
         if pairedClients[cid] then
-            local gpsPos = gps.getPosition(true)
-            if gpsPos then
-                butler_settings.home = gpsPos
-                saveButler()
-                net.respond(cid, msg.token, {
-                    success = false,
-                    message = "Home set to " .. gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z
-                })
+            if turtle then
+                local gpsPos = gps.getPosition(true)
+                if gpsPos then
+                    butler_settings.home = gpsPos
+                    saveButler()
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "Home set to " .. gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z
+                    })
+                else
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "No gps signal!"
+                    })
+                end
             else
                 net.respond(cid, msg.token, {
                     success = false,
-                    message = "No gps signal!"
+                    message = "This is not a turtle!"
                 })
             end
         else
@@ -192,6 +204,7 @@ function listen_sethome()
                 message = "You are not paired with this computer!"
             })
         end
+
     end
 end
 
@@ -202,21 +215,29 @@ function listen_return()
     while true do
         local cid, msg = rednet.receive("NodeOS_return")
         local pairedClients = net.getPairedClients()
-        if not turtle then
-            net.respond(cid, msg.token, {
-                success = false,
-                message = "This is not a turtle!"
-            })
-        end
         if pairedClients[cid] then
-            resetState()
-            statusMessage = "Going home..."
-            butler_settings.status = "returning"
-            butler_settings.navto = butler_settings.home
-            --saveButler()
-            net.respond(cid, msg.token, {
-                success = true
-            })
+            if turtle then
+                if butler_settings.home then
+                    resetState()
+                    statusMessage = "Going home..."
+                    butler_settings.status = "returning"
+                    butler_settings.navto = deepcopy(butler_settings.home)
+                    saveButler()
+                    net.respond(cid, msg.token, {
+                        success = true
+                    })
+                else
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "No home set! Please set a home location with the sethome command."
+                    })
+                end
+            else
+                net.respond(cid, msg.token, {
+                    success = false,
+                    message = "This is not a turtle!"
+                })
+            end
         else
             net.respond(cid, msg.token, {
                 success = false,
@@ -232,17 +253,18 @@ function listen_status()
     while true do
         local cid, msg = rednet.receive("NodeOS_butlerStatus")
         local pairedClients = net.getPairedClients()
-        if not turtle then
-            net.respond(cid, msg.token, {
-                success = false,
-                message = "This is not a turtle!"
-            })
-        end
         if pairedClients[cid] then
-            net.respond(cid, msg.token, {
-                success = true,
-                status = statusMessage
-            })
+            if turtle then
+                net.respond(cid, msg.token, {
+                    success = true,
+                    status = statusMessage
+                })
+            else
+                net.respond(cid, msg.token, {
+                    success = false,
+                    message = "This is not a turtle!"
+                })
+            end
         else
             net.respond(cid, msg.token, {
                 success = false,

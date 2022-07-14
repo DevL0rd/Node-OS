@@ -1,58 +1,115 @@
 local net = require("/lib/net")
 local gps = require("/lib/gps")
+local termUtils = require("/lib/termUtils")
 local args = { ... }
 
---usage net pair <id> <pin>
---usage net unpair <id>
---usage net list
+function printHelp()
+    termUtils.print("Usage: net <command> <arguments>")
+    termUtils.print("  You can use '-' in place of id to get closest computer.")
+    termUtils.print("Commands:")
+    termUtils.print("  help - Prints this help message.")
+    termUtils.print("  pair <computergroup|name|id|-> <pin> - Pairs a computer.")
+    termUtils.print("  unpair <computergroup|name|id|-> <pin> - Unpairs a computer.")
+    termUtils.print("  list - Lists all computers on network.")
+end
+
+if #args == 0 then
+    printHelp()
+    return
+end
+
 if args[1] == "pair" then
     if not args[2] or not args[3] then
-        print("usage: pairing pair <id> <pin>")
+        termUtils.print("usage: pairing pair <id> <pin>", "red")
         return
     end
-    local cId = gps.getComputerID(args[2])
-    if not cId then
-        cId = tonumber(args[2])
+    local cIds = gps.resolveComputersByString(args[2])
+
+    if not cIds then
+        termUtils.print("No computer found!", "red")
+        return
     end
-    local pin = args[3]
-    local res = net.emit("NodeOS_pair", pin, cId)
-    if res and res.success then
-        print("Paired!")
-        local pairedDevices = net.getPairedDevices()
-        pairedDevices[cId] = true
-        net.savePairedDevices(pairedDevices)
-    else
-        print("Failed to pair!")
+    for i, cId in ipairs(cIds) do
+        local pin = args[3]
+        local res = net.emit("NodeOS_pair", pin, cId)
+        if res then
+            if res.success then
+                termUtils.print(res.message, "green")
+                local pairedDevices = net.getPairedDevices()
+                pairedDevices[cId] = true
+                net.savePairedDevices(pairedDevices)
+            else
+                termUtils.print(res.message, "red")
+            end
+        else
+            termUtils.print("Failed to connect!", "red")
+        end
     end
 elseif args[1] == "unpair" then
     if not args[2] then
-        print("usage: pairing unpair <id>")
+        termUtils.print("usage: pairing unpair <id>", "red")
         return
     end
-    local cId = gps.getComputerID(args[2])
-    if not cId then
-        cId = tonumber(args[2])
+    local cIds = gps.resolveComputersByString(args[2], true)
+
+    if not cIds then
+        termUtils.print("No paired computer found!", "red")
+        return
     end
-    local res = net.emit("NodeOS_unpair", nil, cId)
-    if res and res.success then
-        print("Unpaired!")
-        local pairedDevices = net.getPairedDevices()
-        pairedDevices[cId] = nil
-        net.savePairedDevices(pairedDevices)
-    else
-        print("Failed to pair!")
+    for i, cId in ipairs(cIds) do
+        local res = net.emit("NodeOS_unpair", nil, cId)
+        if res then
+            if res.success then
+                termUtils.print(res.message, "green")
+                local pairedDevices = net.getPairedDevices()
+                pairedDevices[cId] = nil
+                net.savePairedDevices(pairedDevices)
+            else
+                termUtils.print(res.message, "red")
+            end
+        else
+            termUtils.print("Failed to connect!", "red")
+        end
     end
 elseif args[1] == "list" then
-    print("Devices: ")
-    for cId, _ in pairs(net.getPairedDevices()) do
-        local name = gps.getComputerName(cId)
-        print("  " .. name .. "@" .. cId)
+    termUtils.print("Computer List:", "purple")
+    local range = nil
+    if args[1] and isInt(tonumber(args[1])) then
+        range = tonumber(args[1])
     end
-    print("Clients: ")
-    for cId, _ in pairs(net.getPairedClients()) do
-        local name = gps.getComputerName(cId)
-        print("  " .. name .. "@" .. cId)
+
+    local localComputers = gps.getLocalComputers()
+    for id, details in pairs(localComputers) do
+        local dist = "?"
+        local gpsPos = gps.getPosition()
+        if gpsPos and localComputers[id].pos then
+            dist = math.floor(gps.getDistance(gpsPos, localComputers[id].pos))
+        end
+        local pairdDevices = net.getPairedDevices()
+        if dist ~= "?" and range then
+            if dist <= range then
+                if (net.ping(id)) then
+                    if pairdDevices[id] then
+                        termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
+                    else
+                        termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
+                    end
+                else
+                    termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
+                end
+            end
+        else
+            if (net.ping(id)) then
+                if pairdDevices[id] then
+                    termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
+                else
+                    termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
+                end
+            else
+                termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
+            end
+        end
     end
 else
-    print("usage: pairing <pair|unpair|list>")
+    printHelp()
 end

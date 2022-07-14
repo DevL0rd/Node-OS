@@ -75,53 +75,53 @@ if not fs.exists("/etc/menu/pinned.cfg") then
     local file = fs.open("/etc/menu/pinned.cfg", "w")
     file.write(textutils.serialize({
         {
-            title = "Shell",
             path = "sys/shell.lua",
+            title = "Shell",
             insettings = {
-                width = 40,
-                height = 17,
+                height = 12,
                 maximazed = true,
-                title = "Shell"
-            }
+                title = "Shell",
+                width = 30,
+            },
         },
         {
             title = "Map",
             path = "bin/map.lua",
             insettings = {
-                width = 40,
-                height = 17,
+                width = 30,
+                height = 12,
                 maximazed = true,
                 title = "Map"
             }
         },
         {
-            title = "Task Manager",
             path = "/sys/ui/tskmgr.lua",
+            title = "Task Manager",
             insettings = {
-                width = 30,
                 height = 15,
-                title = "Task Manager"
-            }
+                title = "Task Manager",
+                width = 30,
+            },
         },
         {
-            title = "Settings",
             path = "/sys/ui/settings.lua",
+            title = "Settings",
             insettings = {
-                width = 40,
                 height = 17,
                 maximazed = true,
-                title = "Settings"
-            }
+                title = "Settings",
+                width = 40,
+            },
         },
         {
-            title = "About",
             path = "/sys/ui/about.lua",
+            title = "About",
             insettings = {
-                width = 29,
                 height = 10,
-                title = "About NodeOS"
-            }
-        }
+                title = "About NodeOS",
+                width = 29,
+            },
+        },
     }))
     file.close()
 end
@@ -151,21 +151,36 @@ end
 
 local settings = require("/lib/settings")
 term.clear()
-if not settings.settings.password then
-    print("Please input a password:")
-    local sha256 = require("/lib/sha256")
-    settings.settings.password = read("*")
-    if settings.settings.password ~= "" then
-        settings.settings.password = sha256(settings.settings.password)
+local completeSetupPassword = false
+while not completeSetupPassword do
+    if not settings.settings.password then
+        print("Please input a password:")
+        print("Typing nothing will not set a password.")
+        local sha256 = require("/lib/sha256")
+        settings.settings.password = read("*")
+        if settings.settings.password ~= "" then
+            print("Please confirm your password:")
+            local pass2 = read("*")
+            if pass2 == settings.settings.password then
+                settings.settings.password = sha256(settings.settings.password)
+                completeSetupPassword = true
+            else
+                print("Passwords do not match!")
+                settings.settings.password = nil
+            end
+        end
+    else
+        completeSetupPassword = true
     end
 end
-if not os.getComputerLabel() then
+
+while not os.getComputerLabel() do
     print("Please input a computer name:")
     os.setComputerLabel(read())
 end
-if not settings.settings.pin then
-    print("Please input a pairing pin:")
-    settings.settings.pin = read()
+while not settings.settings.pin do
+    print("Please input a SECURE pairing pin:")
+    settings.settings.pin = read("*")
 end
 term.clear()
 settings.saveSettings(settings.settings)

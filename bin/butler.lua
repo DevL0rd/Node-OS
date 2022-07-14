@@ -2,22 +2,34 @@ local net = require("/lib/net")
 local gps = require("/lib/gps")
 local termUtils = require("/lib/termUtils")
 
+function printHelp()
+    termUtils.print("Usage: butler computergroup|name|id|- <command> <arguments>")
+    termUtils.print("  You can use '-' in place of id to get closest computer.")
+    termUtils.print("Commands:")
+    termUtils.print("  help - Prints this help message.")
+    termUtils.print("  find <block> [ammount] - Finds a block.")
+    termUtils.print("    If ammount is not specified, it will find until inventory is full.")
+    termUtils.print("  sethome - Sets the home.")
+    termUtils.print("  return - Returns to the home.")
+    termUtils.print("  status - Prints the status.")
+
+end
 
 local args = { ... }
 
-local cId = nil
-if args[1] == "-" then
-    cId = gps.getClosestPC(true) -- get closest turtle only
-else
-    cId = gps.getComputerID(args[2])
-    if not cId then
-        cId = tonumber(args[2])
-    end
-end
-if not cId then
-    termUtils.print("No turtle found!", "red")
+
+if #args == 0 then
+    printHelp()
     return
 end
+
+local cIds = gps.resolveComputersByString(args[1], true, true) -- must be paired and be a turtle
+
+if not cIds then
+    termUtils.print("No paired turtle found!", "red")
+    return
+end
+
 if args[2] == "find" then
     if args[3] then
         local name = args[3]
@@ -25,48 +37,54 @@ if args[2] == "find" then
         if args[4] then -- if the user specified a count
             gatherCount = tonumber(args[4])
         end
-        local res = net.emit("NodeOS_butlerFind", {
-            name = name,
-            count = gatherCount
-        }, cId)
+        for i, cId in ipairs(cIds) do
+            local res = net.emit("NodeOS_butlerFind", {
+                name = name,
+                count = gatherCount
+            }, cId)
+            if res then
+                if res.success then
+                    termUtils.print("Turtle sent!", "green")
+                else
+                    termUtils.print(res.message, "red")
+                end
+            else
+                termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            end
+        end
+    else
+        termUtils.print("No block name specified.", "red")
+    end
+elseif args[2] == "sethome" then
+    for i, cId in ipairs(cIds) do
+        local res = net.emit("NodeOS_setHome", nil, cId)
         if res then
             if res.success then
-                termUtils.print("Turtle sent!", "green")
+                termUtils.print("Home set!", "green")
             else
                 termUtils.print(res.message, "red")
             end
         else
             termUtils.print("Failed to connect to " .. cId .. ".", "red")
         end
-    else
-        termUtils.print("No block name specified.", "red")
-    end
-elseif args[2] == "sethome" then
-    local res = net.emit("NodeOS_setHome", nil, cId)
-    if res then
-        if res.success then
-            termUtils.print("Home set!", "green")
-        else
-            termUtils.print(res.message, "red")
-        end
-    else
-        termUtils.print("Failed to connect to " .. cId .. ".", "red")
     end
 elseif args[2] == "return" then
-    local res = net.emit("NodeOS_return", nil, cId)
-    if res then
-        if res.success then
-            termUtils.print("Turtle returning to home...", "green")
+    for i, cId in ipairs(cIds) do
+        local res = net.emit("NodeOS_return", nil, cId)
+        if res then
+            if res.success then
+                termUtils.print("Turtle returning to home...", "green")
+            else
+                termUtils.print(res.message, "red")
+            end
         else
-            termUtils.print(res.message, "red")
+            termUtils.print("Failed to connect to " .. cId .. ".", "red")
         end
-    else
-        termUtils.print("Failed to connect to " .. cId .. ".", "red")
     end
 elseif args[2] == "status" then
     local lastStatus = ""
     while true do
-        local res = net.emit("NodeOS_butlerStatus", nil, cId)
+        local res = net.emit("NodeOS_butlerStatus", nil, cIds[1])
         if res then
             if res.success then
                 if res.status ~= lastStatus then
@@ -77,13 +95,10 @@ elseif args[2] == "status" then
                 termUtils.print(res.message, "red")
             end
         else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            termUtils.print("Failed to connect to " .. cIds[1] .. ".", "red")
         end
         sleep(0.2)
     end
 else
-    termUtils.print("Usage: butler find <block>", "red")
-    termUtils.print("Usage: butler goto <block,computer>", "red")
-    termUtils.print("Usage: butler sethome", "red")
-    termUtils.print("Usage: butler return", "red")
+    printHelp()
 end

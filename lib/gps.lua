@@ -40,39 +40,117 @@ function gps.getLocalComputers()
         return gps.localComputers
     end
     gps.localComputers = computers
-    return computers
+    return gps.localComputers
 end
 
 function gps.saveLocalComputers(computers)
     file.writeTable(localComputers_path, computers)
 end
 
-function gps.getClosestPC(turtleOnly)
+function Set(list)
+    local set = {}
+    for _, l in ipairs(list) do set[l] = true end
+    return set
+end
+
+function gps.resolveComputersByString(str, mustBePaired, mustBeTurtle)
+    local cIds = {}
+    if str == "-" then
+        local cPC = gps.getClosestPC(mustBePaired, mustBeTurtle)
+        if not cPC then
+            return nil
+        end
+        table.insert(cIds, cPC.id)
+    else
+        local computers = gps.getComputersInGroup(str, mustBePaired, mustBeTurtle)
+        if #computers == 0 then
+            local cId = nil
+            cId = gps.getComputerID(str)
+            if not cId then
+                cId = tonumber(str)
+            end
+            if not cId then
+                return nil
+            end
+            table.insert(cIds, cId)
+        else
+            for i = 1, #computers do
+                table.insert(cIds, computers[i].id)
+            end
+        end
+    end
+    return cIds
+end
+
+function gps.getComputersInGroup(group, mustBePaired, mustBeTurtle)
+    local localComputers = gps.getLocalComputers()
+    local groupComputers = {}
+
+    if mustBePaired then
+        local filteredPCS = {}
+        local pairedComputers = net.getPairedDevices()
+        for id, computer in pairs(localComputers) do
+            if pairedComputers[computer.id] then
+                table.insert(filteredPCS, computer)
+            end
+        end
+        localComputers = filteredPCS
+    end
+    if mustBeTurtle then
+        local filteredPCS = {}
+        for i, computer in pairs(localComputers) do
+            if computer.isTurtle then
+                table.insert(filteredPCS, computer)
+            end
+        end
+        localComputers = filteredPCS
+    end
+    for i, computer in pairs(localComputers) do
+        if computer.groups then
+            local compsGroups = Set(computer.groups)
+            if compsGroups[group] then
+                table.insert(groupComputers, computer)
+            end
+        end
+    end
+    return groupComputers
+end
+
+function gps.getClosestPC(mustBePaired, mustBeTurtle)
     local gpsPos = gps.getPosition()
     local localComputers = gps.getLocalComputers()
     if gpsPos then
-        local closestDist = nil
-        local closestID = nil
-        for id, details in pairs(localComputers) do
-            if turtleOnly then
-                if details.pos and details.isTurtle then
-                    local dist = gps.getDistance(gpsPos, details.pos)
-                    if not closestDist or dist < closestDist then
-                        closestDist = dist
-                        closestID = id
-                    end
+        if mustBePaired then
+            local filteredPCS = {}
+            local pairedComputers = net.getPairedDevices()
+            for id, computer in pairs(localComputers) do
+                if pairedComputers[computer.id] then
+                    table.insert(filteredPCS, computer)
                 end
-            else
-                if details.pos then
-                    local dist = gps.getDistance(details.pos, gpsPos)
-                    if closestDist == nil or dist < closestDist then
-                        closestDist = dist
-                        closestID = id
-                    end
+            end
+            localComputers = filteredPCS
+        end
+        if mustBeTurtle then
+            local filteredPCS = {}
+            for i, computer in pairs(localComputers) do
+                if computer.isTurtle then
+                    table.insert(filteredPCS, computer)
+                end
+            end
+            localComputers = filteredPCS
+        end
+        local closestDist = nil
+        local closestPC = nil
+        for id, computer in pairs(localComputers) do
+            if computer.pos then
+                local dist = gps.getDistance(computer.pos, gpsPos)
+                if closestDist == nil or dist < closestDist then
+                    closestDist = dist
+                    closestPC = computer
                 end
             end
         end
-        return closestID
+        return closestPC
     end
     return nil
 end
@@ -348,7 +426,7 @@ function gps.getWorldTiles(radius, height)
     local gpsPos = gps.getPosition()
     if gpsPos then
         local blocks = net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = gpsPos },
-            settings.NodeOSMasterID)
+            settings.master)
         if blocks then
             gps.setWorldTiles(gpsPos, radius, height, blocks)
         end
@@ -363,7 +441,7 @@ function gps.getInterestingTiles(radius, height, name, gpsPos)
     if gpsPos then
         local res = net.emit("NodeOS_getInterestingTiles",
             { radius = radius, height = height, pos = gpsPos, name = name },
-            settings.NodeOSMasterID)
+            settings.master)
         if res and res.name then
             gps.setInterestingTiles(gpsPos, radius, height, res.name, res.tiles)
             return {
@@ -377,7 +455,7 @@ end
 
 function gps.getAllWorldTiles()
     local tiles = net.emit("NodeOS_getWorldTiles", { all = true },
-        settings.NodeOSMasterID)
+        settings.master)
     if tiles then
         for x, y in pairs(tiles) do
             for y, z in pairs(y) do
@@ -406,7 +484,7 @@ end
 
 function gps.getAllInterestingTiles(name)
     local res = net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
-        settings.NodeOSMasterID)
+        settings.master)
     if res and res.name then
         if not gps.interestingTiles[res.name] then
             gps.interestingTiles[res.name] = {}

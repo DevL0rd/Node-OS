@@ -12,8 +12,6 @@ turtleUtils.pos = {
     z = 0
 }
 turtleUtils.direction = directions.north
-
-gps.settings.offset.y = 1
 function getDirectionTraveled(posFirst, posSecond)
     local dir = nil
     if posSecond.x > posFirst.x then

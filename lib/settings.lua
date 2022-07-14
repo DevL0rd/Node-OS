@@ -7,7 +7,10 @@ local settings = {
     settings = {
         password = nil,
         pin = nil,
-        NodeOSMasterID = 0
+        master = 0,
+        groups = {
+            "all"
+        }
     }
 }
 
@@ -18,7 +21,13 @@ function settings.getSettings()
         return settings.settings
     end
     settings.settings = s
-    return s
+    if not settings.settings.groups then -- TODO remove after update
+        settings.settings.groups = {
+            "all"
+        }
+        settings.saveSettings(settings.settings)
+    end
+    return settings.settings
 end
 
 function settings.saveSettings(settings)
