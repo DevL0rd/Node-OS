@@ -9,7 +9,6 @@ local butler_settings_path = "etc/butler/settings.cfg"
 local butler_settings = {
     home = nil,
     status = "idle",
-    navto = nil,
     navtoid = nil,
     navname = "",
     pointsTraveled = 0,
@@ -65,53 +64,134 @@ function tileUpdateThread()
             end
             updatingTiles = false
         end
-        sleep(0.5)
+        sleep(0.1)
+    end
+end
+
+local chests = {}
+function findBlocks_step()
+    if turtleUtils.hasNoSlots() or
+        (butler_settings.gatherCount and butler_settings.pointsTraveled == butler_settings.gatherCount) then
+        statusMessage = "Inventory full, returning to home."
+        butler_settings.status = "returning"
+        saveButler()
+        return
+    end
+    if updatingTiles then
+        statusMessage = "Scanning new tiles..."
+        return
+    end
+    statusMessage = "Looking for '" .. butler_settings.navname .. "'..."
+    local closestBlock = gps.findBlock(butler_settings.navname)
+    if closestBlock then
+        local gpsPos = gps.getPosition()
+        local dist = "?"
+        if gpsPos then
+            dist = gps.getDistance(gpsPos, closestBlock, true)
+        end
+        statusMessage = "Navigating to " ..
+            closestBlock.name ..
+            ". Distance: " .. dist
+        gps.removeInterestingTile(closestBlock.name, closestBlock)
+        turtleUtils.goTo(closestBlock, true, 0)
+        butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
+
+    else
+        statusMessage = "Can't find block, returning home."
+        butler_settings.status = "returning"
+        saveButler()
+    end
+
+end
+
+function storeBlocks_step()
+
+    -- if you have things in your inventory
+    -- local inventory = turtleUtils.getInventoryByNames()
+    -- if next(inventory) ~= nil then
+    --     butler_settings.navname = "minecraft:chest"
+    --     lastTileUpdatePosition = nil
+    --     sleep(0.5)
+    --     while updatingTiles do
+    --         sleep(0.5)
+    --     end
+    --     local chests = gps.getTilesByDistance("minecraft:chest")
+    --     if chests then
+    --         for _, item in pairs(inventory) do
+    --             local currentItem = item.name
+    --             for i, v in ipairs(chests) do
+    --                 local key = v.pos.x .. "," .. v.pos.y .. "," .. v.pos.z
+    --                 if chests[key] then
+    --                     if chests[key] == currentItem then
+    --                         for i = 1, #item.slots do
+    --                             chest.pushItems("minecraft:chest_0", item.slots[i])
+    --                         end
+    --                         break
+    --                     end
+    --                 else
+    --                     -- goto chest and see what first item is
+
+    --                     turtleUtils.goTo(v.pos, false, 1)
+    --                     local chest = peripheral.wrap("minecraft:chest_0")
+    --                     local cItem = chest.getItemDetail(1)
+    --                     if cItem then
+    --                         chests[key] = cItem.name
+    --                         if cItem.name == currentItem then
+    --                             for i = 1, #item.slots do
+    --                                 chest.pushItems("minecraft:chest_0", item.slots[i])
+    --                             end
+    --                             break
+    --                         end
+    --                     else
+    --                         chests[key] = currentItem
+    --                         for i = 1, #item.slots do
+    --                             chest.pushItems("minecraft:chest_0", item.slots[i])
+    --                         end
+    --                         break
+    --                     end
+
+
+    --                     print(("%s (%s)"):format(item.displayName, item.name))
+    --                 end
+    --             end
+    --         end
+    --     end
+    -- end
+    -- local gps.getChests
+end
+
+function follow_step()
+    local localComputers = gps.getLocalComputers()
+    local navToComputer = localComputers[butler_settings.navtoid]
+    if navToComputer then
+        statusMessage = "Following computer '" .. navToComputer.name .. "'."
+        navToComputer.pos.y = navToComputer.pos.y - 2
+        turtleUtils.goTo(navToComputer.pos, false, 2)
+    end
+end
+
+function dumpItems()
+    if gps.interestingTilesBlacklist then
+        turtleUtils.dumpItems(gps.interestingTilesBlacklist)
+        turtle.select(1)
     end
 end
 
 function butlerThread()
     turtleUtils.calibrate()
+    gps.getInterestingTilesBlacklist()
     while true do
-        if butler_settings.status == "findingBlocks" and turtleUtils.hasNoSlots() or
-            (butler_settings.gatherCount and butler_settings.pointsTraveled == butler_settings.gatherCount) then
-            statusMessage = "Inventory full, returning to home."
-            butler_settings.status = "returning"
-            butler_settings.navto = deepcopy(butler_settings.home)
+        if butler_settings.status == "home" then
+            storeBlocks_step()
+        elseif butler_settings.status == "returning" then
+            turtleUtils.goTo(butler_settings.home, true, 0)
+            butler_settings.status = "home"
             saveButler()
-        end
-        if butler_settings.status == "findingBlocks" then
-            statusMessage = "Scanning for blocks..."
-            while updatingTiles do
-                sleep(0.5)
-            end
-            local closestBlock = gps.findBlock(butler_settings.navname)
-            if closestBlock then
-                statusMessage = "Block found! Navigating to " ..
-                    closestBlock.name ..
-                    " at " .. closestBlock.x .. "," .. closestBlock.y .. "," .. closestBlock.z .. "."
-                butler_settings.navto = { x = closestBlock.x, y = closestBlock.y, z = closestBlock.z }
-                saveButler()
-            else
-                statusMessage = "Can't find block, returning home."
-                butler_settings.status = "returning"
-                butler_settings.navto = deepcopy(butler_settings.home)
-                saveButler()
-            end
-        elseif butler_settings.navtoid then
-            local localComputers = gps.getLocalComputers()
-            local navToComputer = localComputers[butler_settings.navtoid]
-            if navToComputer then
-                statusMessage = "Following computer '" .. navToComputer.name .. "'."
-                butler_settings.navto = navToComputer.pos
-                saveButler()
-            end
-        end
-        if butler_settings.navto then
-            turtleUtils.goTo(butler_settings.navto, true, butler_settings.navname)
-            butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
-            butler_settings.navto = nil
-            -- statusMessage = "Action Complete! Waiting for command..."
-            saveButler()
+        elseif butler_settings.status == "findingBlocks" then
+            findBlocks_step()
+            dumpItems()
+        elseif butler_settings.status == "following" then
+            follow_step()
         end
         sleep(0.2)
     end
@@ -130,6 +210,7 @@ function listen_find()
                 if butler_settings.home then
                     local data = msg.data
                     resetState()
+                    gps.getInterestingTilesBlacklist()
                     if not turtleUtils.hasNoSlots() then
                         butler_settings.navname = data.name
                         if data.count then
@@ -180,6 +261,8 @@ function listen_sethome()
                 local gpsPos = gps.getPosition(true)
                 if gpsPos then
                     butler_settings.home = gpsPos
+                    resetState()
+                    butler_settings.status = "home"
                     saveButler()
                     net.respond(cid, msg.token, {
                         success = false,
@@ -218,9 +301,9 @@ function listen_return()
             if turtle then
                 if butler_settings.home then
                     resetState()
+                    gps.getInterestingTilesBlacklist()
                     statusMessage = "Going home..."
                     butler_settings.status = "returning"
-                    butler_settings.navto = deepcopy(butler_settings.home)
                     saveButler()
                     net.respond(cid, msg.token, {
                         success = true
@@ -247,6 +330,45 @@ function listen_return()
 end
 
 parallel.addOSThread(listen_return)
+
+function listen_follow()
+    while true do
+        local cid, msg = rednet.receive("NodeOS_follow")
+        local pairedClients = net.getPairedClients()
+        if pairedClients[cid] then
+            if turtle then
+                if butler_settings.home then
+                    resetState()
+                    statusMessage = "Following computer '" .. cid .. "'."
+                    butler_settings.navtoid = cid
+                    butler_settings.status = "following"
+                    saveButler()
+                    net.respond(cid, msg.token, {
+                        success = true
+                    })
+                else
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "No home set! Please set a home location with the sethome command."
+                    })
+                end
+            else
+                net.respond(cid, msg.token, {
+                    success = false,
+                    message = "This is not a turtle!"
+                })
+            end
+        else
+            net.respond(cid, msg.token, {
+                success = false,
+                message = "You are not paired with this computer!"
+            })
+        end
+    end
+end
+
+parallel.addOSThread(listen_follow)
+
 -- NodeOS_butlerStatus
 function listen_status()
     while true do
@@ -278,9 +400,9 @@ parallel.addOSThread(listen_status)
 function resetState()
     statusMessage = "Waiting for command..."
     butler_settings.status = "idle"
-    butler_settings.navto = nil
     butler_settings.navtoid = nil
-    butler_settings.navname = ""
+    butler_settings.navname = nil
     butler_settings.pointsTraveled = 0
     butler_settings.gatherCount = nil
+    lastTileUpdatePosition = nil
 end

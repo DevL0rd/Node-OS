@@ -273,6 +273,10 @@ if os.getComputerID() == settings.master then
                             if block.name ~= "minecraft:air" then
                                 if not interestingTilesBlacklist[block.name] then
                                     count = count + 1
+                                    --if deepslate_ at begining of name, remove it
+                                    if string.find(block.name, "deepslate_") then
+                                        block.name = string.sub(block.name, string.len("deepslate_") + 1)
+                                    end
                                     if not interestingTiles[block.name] then
                                         interestingTiles[block.name] = {
                                             changed = true
@@ -336,13 +340,43 @@ if os.getComputerID() == settings.master then
 
     parallel.addOSThread(listen_getInterestingTiles)
 
+    function listen_removeInterestingTile()
+        while true do
+            local cid, msg = rednet.receive("NodeOS_removeInterestingTile")
+            local data = msg.data
+            if interestingTiles[data.name] and interestingTiles[data.name][data.pos.x] and
+                interestingTiles[data.name][data.pos.x][data.pos.y] and
+                interestingTiles[data.name][data.pos.x][data.pos.y][data.pos.z] then
+                interestingTiles[data.name][data.pos.x][data.pos.y][data.pos.z] = nil
+                interestingTiles[data.name].changed = true
+                if (not next(interestingTiles[data.name][data.pos.x][data.pos.y])) then
+                    interestingTiles[data.name][data.pos.x][data.pos.y] = nil
+                    if (not next(interestingTiles[data.name][data.pos.x])) then
+                        interestingTiles[data.name][data.pos.x] = nil
+                    end
+                end
+            end
+        end
+    end
+
+    parallel.addOSThread(listen_removeInterestingTile)
+
+    function listen_getInterestingTilesBlacklist()
+        while true do
+            local cid, msg = rednet.receive("NodeOS_getInterestingTilesBlacklist")
+            net.respond(cid, msg.token, interestingTilesBlacklist)
+        end
+    end
+
+    parallel.addOSThread(listen_getInterestingTilesBlacklist)
+
     function saveServerTiles()
         while true do
             for i, v in pairs(interestingTiles) do
                 if v.changed then
                     v.changed = false
-                    -- replace : with *col*
-                    local fileName = string.gsub(i, ":", "*col*")
+                    -- replace : with -
+                    local fileName = string.gsub(i, ":", "-")
                     local file = fs.open(interestingTiles_path .. "/" .. fileName .. ".dat", "w")
                     file.write(textutils.serialize(v))
                     file.close()
@@ -360,7 +394,7 @@ if os.getComputerID() == settings.master then
                 local data = textutils.unserialize(file.readAll())
                 file.close()
                 local key = string.sub(v, 1, -5)
-                key = string.gsub(key, "*col*", ":")
+                key = string.gsub(key, "-", ":")
                 interestingTiles[key] = data
             end
         end

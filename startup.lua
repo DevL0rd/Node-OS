@@ -78,27 +78,16 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             path = "sys/shell.lua",
             title = "Shell",
             insettings = {
-                height = 12,
-                maximized = true,
+                height = 17,
                 title = "Shell",
-                width = 30,
+                width = 40,
             },
-        },
-        {
-            title = "Map",
-            path = "bin/map.lua",
-            insettings = {
-                width = 30,
-                height = 12,
-                maximized = true,
-                title = "Map"
-            }
         },
         {
             path = "/sys/ui/tskmgr.lua",
             title = "Task Manager",
             insettings = {
-                height = 15,
+                height = 17,
                 title = "Task Manager",
                 width = 30,
             },
@@ -108,7 +97,6 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             title = "Settings",
             insettings = {
                 height = 17,
-                maximized = true,
                 title = "Settings",
                 width = 40,
             },

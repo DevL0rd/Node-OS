@@ -81,6 +81,19 @@ elseif args[2] == "return" then
             termUtils.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
+elseif args[2] == "follow" then
+    for i, cId in ipairs(cIds) do
+        local res = net.emit("NodeOS_follow", {}, cId)
+        if res then
+            if res.success then
+                termUtils.print("Turtle following.", "green")
+            else
+                termUtils.print(res.message, "red")
+            end
+        else
+            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+        end
+    end
 elseif args[2] == "status" then
     local lastStatus = ""
     while true do

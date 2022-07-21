@@ -466,6 +466,68 @@ function gps.getAllInterestingTiles(name)
     return nil
 end
 
+function gps.getInterestingTilesBlacklist()
+    local res = net.emit("NodeOS_getInterestingTilesBlacklist", {}, settings.master)
+    if res then
+        gps.interestingTilesBlacklist = res
+        return gps.interestingTilesBlacklist
+    end
+    return nil
+end
+
+function gps.removeInterestingTile(name, pos)
+    if not gps.interestingTiles[name] then
+        return
+    end
+    if not gps.interestingTiles[name][pos.x] then
+        return
+    end
+    if not gps.interestingTiles[name][pos.x][pos.y] then
+        return
+    end
+    if not gps.interestingTiles[name][pos.x][pos.y][pos.z] then
+        return
+    end
+    gps.interestingTiles[name][pos.x][pos.y][pos.z] = nil
+    if (not next(gps.interestingTiles[name][pos.x][pos.y])) then
+        gps.interestingTiles[name][pos.x][pos.y] = nil
+        if (not next(gps.interestingTiles[name][pos.x])) then
+            gps.interestingTiles[name][pos.x] = nil
+            if (not next(gps.interestingTiles[name])) then
+                gps.interestingTiles[name] = nil
+            end
+        end
+    end
+    net.emit("NodeOS_removeInterestingTile", {
+        name = name,
+        pos = pos
+    }, settings.master, true)
+end
+
+function gps.getTilesByDistance(name)
+    if not gps.interestingTiles[name] then
+        return nil
+    end
+    local gpsPos = gps.getPosition()
+    if not gpsPos then
+        return nil
+    end
+    local tiles = {}
+    for x, v in pairs(gps.interestingTiles[name]) do
+        if x ~= "changed" then
+            for y, v2 in pairs(v) do
+                for z, v3 in pairs(v2) do
+                    local pos = { x = x, y = y, z = z }
+                    local distance = gps.getDistance(gpsPos, pos)
+                    table.insert(tiles, { pos = pos, distance = distance })
+                end
+            end
+        end
+    end
+    table.sort(tiles, function(a, b) return a.distance < b.distance end)
+    return tiles
+end
+
 function gps.getComputerID(name)
     local lComps = gps.getLocalComputers()
     for i, comp in pairs(lComps) do

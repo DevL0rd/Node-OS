@@ -10,7 +10,7 @@
         minimize = 16
     },
     desktop = {
-        background = 128
+        background = 4096
     },
     titlebar = {
         background = 2048,
