@@ -27,7 +27,7 @@ function getDirectionTraveled(posFirst, posSecond)
 end
 
 function turtleUtils.calibrate()
-    -- gps.settings.offset.z = -1
+    -- gps.settings.offset.y = 1
     calibrated = false
     while not calibrated do
         local gpsPos = gps.getPosition(true)
@@ -63,18 +63,15 @@ function turtleUtils.getCoordsAhead(ammount)
 end
 
 function turtleUtils.dig()
-    if turtle.dig() then
-    end
+    return turtle.dig()
 end
 
 function turtleUtils.digUp()
-    if turtle.digUp() then
-    end
+    return turtle.digUp()
 end
 
 function turtleUtils.digDown()
-    if turtle.digDown() then
-    end
+    return turtle.digDown()
 end
 
 function turtleUtils.forward(breakBlocks)
@@ -86,7 +83,9 @@ function turtleUtils.forward(breakBlocks)
             (turtleUtils.direction == directions.east and 1 or turtleUtils.direction == directions.west and -1 or 0)
         turtleUtils.pos.z = turtleUtils.pos.z +
             (turtleUtils.direction == directions.north and -1 or turtleUtils.direction == directions.south and 1 or 0)
+        return true
     end
+    return false
 end
 
 function turtleUtils.back()
@@ -95,7 +94,9 @@ function turtleUtils.back()
             (turtleUtils.direction == directions.east and -1 or turtleUtils.direction == directions.west and 1 or 0)
         turtleUtils.pos.z = turtleUtils.pos.z +
             (turtleUtils.direction == directions.north and 1 or turtleUtils.direction == directions.south and -1 or 0)
+        return true
     end
+    return false
 end
 
 function turtleUtils.down(breakBlocks)
@@ -104,7 +105,9 @@ function turtleUtils.down(breakBlocks)
     end
     if turtle.down() then
         turtleUtils.pos.y = turtleUtils.pos.y - 1
+        return true
     end
+    return false
 end
 
 function turtleUtils.up(breakBlocks)
@@ -113,7 +116,9 @@ function turtleUtils.up(breakBlocks)
     end
     if turtle.up() then
         turtleUtils.pos.y = turtleUtils.pos.y + 1
+        return true
     end
+    return false
 end
 
 function turtleUtils.turnLeft()
@@ -175,7 +180,13 @@ function turtleUtils.turn(direction)
     end
 end
 
+function turtleUtils.isAboveOrBelowPos(pos)
+    return not pos.x or not pos.y or not pos.z or
+        pos.x == turtleUtils.pos.x and pos.z == turtleUtils.pos.z and pos.y ~= turtleUtils.pos.y
+end
+
 function turtleUtils.goTo(pos, breakBlocks, targetDistance)
+    local fixingDirectionWE = false
     while true do
         -- local gpsPos = gps.getPosition(true)
         -- if gpsPos then
@@ -190,18 +201,21 @@ function turtleUtils.goTo(pos, breakBlocks, targetDistance)
         if dist == targetDistance then
             return
         end
-        local isAboveOrBelow = false
-        if pos.x > turtleUtils.pos.x then
-            turtleUtils.turn(directions.east)
-        elseif pos.x < turtleUtils.pos.x then
-            turtleUtils.turn(directions.west)
-        elseif pos.z > turtleUtils.pos.z then
-            turtleUtils.turn(directions.south)
-        elseif pos.z < turtleUtils.pos.z then
-            turtleUtils.turn(directions.north)
+
+        if fixingDirectionWE then
+            if pos.x > turtleUtils.pos.x then
+                turtleUtils.turn(directions.east)
+            elseif pos.x < turtleUtils.pos.x then
+                turtleUtils.turn(directions.west)
+            end
         else
-            isAboveOrBelow = true
+            if pos.z > turtleUtils.pos.z then
+                turtleUtils.turn(directions.south)
+            elseif pos.z < turtleUtils.pos.z then
+                turtleUtils.turn(directions.north)
+            end
         end
+        fixingDirectionWE = not fixingDirectionWE
         if dist <= targetDistance then
             if targetDistance == 1 then
                 if pos.x > turtleUtils.pos.x then
@@ -233,26 +247,36 @@ function turtleUtils.goTo(pos, breakBlocks, targetDistance)
                     turtleUtils.turn(directions.north)
                 end
             end
-            return
+            return true
         end
         if breakBlocks then
             if pos.y < turtleUtils.pos.y then
                 turtleUtils.down(breakBlocks)
             else
-                if isAboveOrBelow and pos.y > turtleUtils.pos.y then
+                if turtleUtils.isAboveOrBelowPos(pos) and pos.y > turtleUtils.pos.y then
                     turtleUtils.up(breakBlocks)
                 else
                     turtleUtils.forward(breakBlocks)
                 end
             end
         else
+            local canMove = false
+            if turtleUtils.pos.x ~= pos.x or turtleUtils.pos.z ~= pos.z then
+                if turtleUtils.forward() then
+                    canMove = true
+                end
+            end
             if pos.y < turtleUtils.pos.y then
-                turtleUtils.down()
+                if turtleUtils.down() then
+                    canMove = true
+                end
             elseif pos.y > turtleUtils.pos.y then
-                turtleUtils.up()
-            else
-
-                turtleUtils.forward()
+                if turtleUtils.up() then
+                    canMove = true
+                end
+            end
+            if not canMove then
+                return false
             end
         end
         -- print("------------------")

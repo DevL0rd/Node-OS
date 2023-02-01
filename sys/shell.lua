@@ -18,7 +18,7 @@ term.clear()
 local shell = _G.shell
 local paths = file.readTable("/etc/paths.cfg")
 for i = 1, #paths do
-    shell.setPath(shell.path() .. ":" .. paths[i])
+    shell.setPath(paths[i] .. ":" .. shell.path())
 end
 shell.run("cd /home")
 local currentDir = "home"

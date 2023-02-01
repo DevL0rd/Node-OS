@@ -4,7 +4,7 @@ local termUtils = require("/lib/termUtils")
 local args = { ... }
 
 function printHelp()
-    termUtils.print("Usage: net <command> <arguments>")
+    termUtils.print("Usage: gps <command> <arguments>")
     termUtils.print("  You can use '-' in place of id to get closest computer.")
     termUtils.print("Commands:")
     termUtils.print("  help - Prints this help message.")

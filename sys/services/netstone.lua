@@ -117,7 +117,7 @@ function listen_netStoneCommand()
             elseif data.command == "setin" then
                 if data.params[1] == "on" or data.params[1] == "off" or data.params[1] == "toggle" or
                     data.params[1] == "pulse" then
-                    if data.params[2] then
+                    if data.params[1] == "pulse" and data.params[2] then
                         netstone.settings.onInRange = data.params[1] .. " " .. data.params[2]
                     else
                         netstone.settings.onInRange = data.params[1]
@@ -141,7 +141,7 @@ function listen_netStoneCommand()
             elseif data.command == "setout" then
                 if data.params[1] == "on" or data.params[1] == "off" or data.params[1] == "toggle" or
                     data.params[1] == "pulse" then
-                    if data.params[2] then
+                    if data.params[1] == "pulse" and data.params[2] then
                         netstone.settings.onLeaveRange = data.params[1] .. " " .. data.params[2]
                     else
                         netstone.settings.onLeaveRange = data.params[1]

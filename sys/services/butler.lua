@@ -12,6 +12,7 @@ local butler_settings = {
     navtoid = nil,
     navname = "",
     pointsTraveled = 0,
+    canBreakBlocks = false,
 }
 local statusMessage = "Waiting for command..."
 local isSaving = false
@@ -38,14 +39,6 @@ function tileUpdateThread()
                 updatingTiles = true
                 local res = gps.getAllInterestingTiles(butler_settings.navname)
                 if res then
-                    for i, v in ipairs(res.tiles) do
-                        print(i)
-                    end
-                    butler_settings.navname = res.name
-                end
-                local res = gps.getInterestingTiles(32, 32, butler_settings.navname)
-                if res then
-                    lastTileUpdatePosition = deepcopy(turtleUtils.pos)
                     for i, v in ipairs(res.tiles) do
                         print(i)
                     end
@@ -93,7 +86,7 @@ function findBlocks_step()
             closestBlock.name ..
             ". Distance: " .. dist
         gps.removeInterestingTile(closestBlock.name, closestBlock)
-        turtleUtils.goTo(closestBlock, true, 0)
+        turtleUtils.goTo(closestBlock, butler_settings.canBreakBlocks, 0)
         butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
 
     else
@@ -166,7 +159,7 @@ function follow_step()
     if navToComputer then
         statusMessage = "Following computer '" .. navToComputer.name .. "'."
         navToComputer.pos.y = navToComputer.pos.y - 2
-        turtleUtils.goTo(navToComputer.pos, false, 2)
+        turtleUtils.goTo(navToComputer.pos, butler_settings.canBreakBlocks, 2)
     end
 end
 
@@ -184,7 +177,7 @@ function butlerThread()
         if butler_settings.status == "home" then
             storeBlocks_step()
         elseif butler_settings.status == "returning" then
-            turtleUtils.goTo(butler_settings.home, true, 0)
+            turtleUtils.goTo(butler_settings.home, butler_settings.canBreakBlocks, 0)
             butler_settings.status = "home"
             saveButler()
         elseif butler_settings.status == "findingBlocks" then
@@ -265,7 +258,7 @@ function listen_sethome()
                     butler_settings.status = "home"
                     saveButler()
                     net.respond(cid, msg.token, {
-                        success = false,
+                        success = true,
                         message = "Home set to " .. gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z
                     })
                 else
@@ -304,9 +297,18 @@ function listen_return()
                     gps.getInterestingTilesBlacklist()
                     statusMessage = "Going home..."
                     butler_settings.status = "returning"
+                    local data = msg.data
+                    if data.canBreakBlocks then
+                        butler_settings.canBreakBlocks = data.canBreakBlocks
+                    else
+                        if data.canBreakBlocks == false then
+                            butler_settings.canBreakBlocks = false
+                        end
+                    end
                     saveButler()
                     net.respond(cid, msg.token, {
-                        success = true
+                        success = true,
+                        message = "Going home... (canBreakBlocks: " .. tostring(butler_settings.canBreakBlocks) .. ")"
                     })
                 else
                     net.respond(cid, msg.token, {
@@ -342,9 +344,19 @@ function listen_follow()
                     statusMessage = "Following computer '" .. cid .. "'."
                     butler_settings.navtoid = cid
                     butler_settings.status = "following"
+                    local data = msg.data
+                    if data.canBreakBlocks then
+                        butler_settings.canBreakBlocks = data.canBreakBlocks
+                    else
+                        if data.canBreakBlocks == false then
+                            butler_settings.canBreakBlocks = false
+                        end
+                    end
                     saveButler()
                     net.respond(cid, msg.token, {
-                        success = true
+                        success = true,
+                        message = "Following computer '" ..
+                            cid .. "'. (canBreakBlocks: " .. tostring(butler_settings.canBreakBlocks) .. ")"
                     })
                 else
                     net.respond(cid, msg.token, {
@@ -368,6 +380,41 @@ function listen_follow()
 end
 
 parallel.addOSThread(listen_follow)
+function listen_toggleBreaking()
+    while true do
+        local cid, msg = rednet.receive("NodeOS_toggleBreaking")
+        local pairedClients = net.getPairedClients()
+        if pairedClients[cid] then
+            if turtle then
+                if butler_settings.home then
+                    butler_settings.canBreakBlocks = not butler_settings.canBreakBlocks
+                    saveButler()
+                    net.respond(cid, msg.token, {
+                        success = true,
+                        message = "Breaking blocks is now " .. tostring(butler_settings.canBreakBlocks) .. "."
+                    })
+                else
+                    net.respond(cid, msg.token, {
+                        success = false,
+                        message = "No home set! Please set a home location with the sethome command."
+                    })
+                end
+            else
+                net.respond(cid, msg.token, {
+                    success = false,
+                    message = "This is not a turtle!"
+                })
+            end
+        else
+            net.respond(cid, msg.token, {
+                success = false,
+                message = "You are not paired with this computer!"
+            })
+        end
+    end
+end
+
+parallel.addOSThread(listen_toggleBreaking)
 
 -- NodeOS_butlerStatus
 function listen_status()

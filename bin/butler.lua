@@ -10,9 +10,10 @@ function printHelp()
     termUtils.print("  find <block> [ammount] - Finds a block.")
     termUtils.print("    If ammount is not specified, it will find until inventory is full.")
     termUtils.print("  sethome - Sets the home.")
-    termUtils.print("  return - Returns to the home.")
+    termUtils.print("  return   <canBreakBlock>- Returns to the home.")
+    termUtils.print("  follow <canBreakBlock> - Follow computer issuing the command.")
+    termUtils.print("  toggleBreaking - Toggle block breaking.")
     termUtils.print("  status - Prints the status.")
-
 end
 
 local args = { ... }
@@ -70,10 +71,15 @@ elseif args[2] == "sethome" then
     end
 elseif args[2] == "return" then
     for i, cId in ipairs(cIds) do
-        local res = net.emit("NodeOS_return", nil, cId)
+        local res
+        if args[3] then
+            res = net.emit("NodeOS_return", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
+        else
+            res = net.emit("NodeOS_return", { canBreakBlocks = false }, cId)
+        end
         if res then
             if res.success then
-                termUtils.print("Turtle returning to home...", "green")
+                termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
             end
@@ -83,10 +89,28 @@ elseif args[2] == "return" then
     end
 elseif args[2] == "follow" then
     for i, cId in ipairs(cIds) do
-        local res = net.emit("NodeOS_follow", {}, cId)
+        local res
+        if args[3] then
+            res = net.emit("NodeOS_follow", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
+        else
+            res = net.emit("NodeOS_follow", { canBreakBlocks = false }, cId)
+        end
         if res then
             if res.success then
-                termUtils.print("Turtle following.", "green")
+                termUtils.print(res.message, "green")
+            else
+                termUtils.print(res.message, "red")
+            end
+        else
+            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+        end
+    end
+elseif args[2] == "toggleBreaking" then
+    for i, cId in ipairs(cIds) do
+        local res = net.emit("NodeOS_toggleBreaking", nil, cId)
+        if res then
+            if res.success then
+                termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
             end

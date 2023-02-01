@@ -40,10 +40,10 @@ parallel.addOSThread(giveLocalComputerDetails_thread)
 function listen_setOffset()
     while true do
         local cid, msg = rednet.receive("NodeOS_setOffset")
-        if msg.pos then
-            net.respond(cid, msg.token, { success = gps.setOffset(msg.pos) })
+        if msg.data.pos then
+            net.respond(cid, msg.token, { success = gps.setOffset(msg.data.pos), message = "Offset set!" })
         else
-            net.respond(cid, msg.token, { success = false })
+            net.respond(cid, msg.token, { success = false, message = "No position provided!" })
         end
     end
 end

@@ -12,8 +12,8 @@ function printHelp()
     termUtils.print("  on - Turns on.")
     termUtils.print("  off - Turns off.")
     termUtils.print("  pulse <id> <time> - Pulses a netstone.")
-    termUtils.print("  setin <id> <pin> <value> - Sets a netstone input.")
-    termUtils.print("  setout <id> <pin> <value> - Sets a netstone output.")
+    termUtils.print("  setin <on/off/pulse> - Sets a action on in range.")
+    termUtils.print("  setout <value> - Sets a action on out of range.")
     termUtils.print("  setside <side> - Sets the redstone side.")
     termUtils.print("  setrange <range> - Sets the range.")
     termUtils.print("  enable - Enables ranged mode.")
@@ -138,9 +138,9 @@ elseif args[2] == "pulse" then
         end
     end
 elseif args[2] == "setin" then
-    if data.params[3] == "on" or data.params[3] == "off" or data.params[3] == "toggle" or
-        data.params[3] == "pulse" then
-        if not tonumber(data.params[4]) then
+    if args[3] == "on" or args[3] == "off" or args[3] == "toggle" or
+        args[3] == "pulse" then
+        if args[3] == "pulse" and args[4] ~= nil and not tonumber(args[4]) then
             termUtils.print("Invalid pulse duration.", "red")
             return
         end
@@ -167,9 +167,9 @@ elseif args[2] == "setin" then
         termUtils.print("Invalid argument: " .. args[3] .. ".", "red")
     end
 elseif args[2] == "setout" then
-    if data.params[3] == "on" or data.params[3] == "off" or data.params[3] == "toggle" or
-        data.params[3] == "pulse" then
-        if not tonumber(data.params[4]) then
+    if args[3] == "on" or args[3] == "off" or args[3] == "toggle" or
+        args[3] == "pulse" then
+        if args[3] == "pulse" and args[4] ~= nil and not tonumber(args[4]) then
             termUtils.print("Invalid pulse duration.", "red")
             return
         end
