@@ -1,4 +1,4 @@
-local tw, th = wm.getSize()
+local tw, th = pm.getSize()
 local w, h = term.getSize()
 
 local recent = {}
@@ -10,12 +10,12 @@ local scroll = require("/lib/scrollwindow")
 local draw = require("/lib/draw")
 
 local file = util.loadModule("file")
-local theme = _G.wm.getTheme()
+local theme = _G.pm.getTheme()
 
 local search = textbox.new(3, h - 1, w - 7, nil, "Search", nil, theme.userInput.background, theme.userInput.text)
 local searchWindow = scroll.new(2, 2, w - 3, h - 4, {}, theme.menu.background, false)
 local pinnedWindow = scroll.new(2, 2, w - 3, h - 4, {}, theme.menu.background, true)
-local wm = _G.wm
+local pm = _G.pm
 local query
 local searchResults = {}
 
@@ -93,8 +93,8 @@ local function drawUI()
     for i, v in pairs(pinned) do
       pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.title, sw), colors.white,
         theme.menu.background, function()
-        wm.endProcess(id)
-        wm.selectProcess(wm.createProcess(v.path, v.insettings))
+        pm.endProcess(id)
+        pm.selectProcess(pm.createProcess(v.path, v.insettings))
         cleanRecent(v.path)
         table.insert(recent, 1, {
           name = v.insettings.title or fs.getName(v.path),
@@ -122,8 +122,8 @@ local function drawUI()
     for i, v in pairs(recent) do
       pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.name, sw), colors.white, theme.menu.background
         , function()
-        wm.endProcess(id)
-        wm.selectProcess(wm.createProcess(v.path, {}))
+        pm.endProcess(id)
+        pm.selectProcess(pm.createProcess(v.path, {}))
         cleanRecent(v.path)
         table.insert(recent, 1, {
           name = v.name,
@@ -158,12 +158,12 @@ local function drawUI()
 
       for i, v in pairs(searchResults) do
         local function addFunction()
-          wm.endProcess(id)
+          pm.endProcess(id)
           -- if not lua file
           if v:sub(-4) ~= ".lua" then
             v = "/rom/programs/edit.lua " .. v
           end
-          wm.selectProcess(wm.createProcess(v, {
+          pm.selectProcess(pm.createProcess(v, {
             maximized = true
           }))
           cleanRecent(v)
@@ -223,8 +223,8 @@ while true do
   if e[1] == "mouse_click" then
     local m, x, y = e[2], e[3], e[4]
     if x == w - 2 and y == h - 1 then
-      wm.endProcess(id)
-      wm.selectProcess(wm.createProcess("/sys/ui/shutdown.lua", {
+      pm.endProcess(id)
+      pm.selectProcess(pm.createProcess("/sys/ui/shutdown.lua", {
         height = 6,
         showTitlebar = false,
         dontShowInTitlebar = true,
@@ -238,7 +238,7 @@ while true do
         drawUI()
       end
     end
-  elseif e[1] == "wm_themeupdate" then
+  elseif e[1] == "pm_themeupdate" then
     theme = file.readTable("/etc/colors.cfg")
   end
   local found = searchWindow.checkEvents(e)

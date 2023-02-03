@@ -5,7 +5,7 @@ local sha256 = require("/lib/sha256")
 local file = util.loadModule("file")
 
 local w, h = term.getSize()
-local theme = _G.wm.getTheme()
+local theme = _G.pm.getTheme()
 local password = textbox.new(2, 3, w - 2, "\7", "Password", nil, theme.userInput.background, theme.userInput.text)
 
 
@@ -29,7 +29,7 @@ local function draw()
 
     local foregroundColor = theme.window.titlebar.background
 
-    if wm.getSelectedProcessID() == id then
+    if pm.getSelectedProcessID() == id then
         foregroundColor = theme.window.titlebar.backgroundSelected
     end
 
@@ -65,8 +65,8 @@ while true do
     draw()
     local e = { os.pullEvent() }
     if settings.password == "" then
-        os.queueEvent("wm_login")
-        wm.endProcess(id)
+        os.queueEvent("pm_login")
+        pm.endProcess(id)
     end
     if e[1] == "mouse_click" then
         local m, x, y = e[2], e[3], math.ceil(e[4])
@@ -74,8 +74,8 @@ while true do
             pswrdRaw = password.select()
         elseif x >= 2 and x <= 7 and y == 6 then
             if sha256(pswrdRaw) == settings.password then
-                os.queueEvent("wm_login")
-                wm.endProcess(id)
+                os.queueEvent("pm_login")
+                pm.endProcess(id)
             else
                 errorText = "Incorrect password"
             end
@@ -83,8 +83,8 @@ while true do
     elseif e[1] == "key" then
         if e[2] == keys.enter then
             if sha256(pswrdRaw) == settings.password then
-                os.queueEvent("wm_login")
-                wm.endProcess(id)
+                os.queueEvent("pm_login")
+                pm.endProcess(id)
             else
                 errorText = "Incorrect password"
             end

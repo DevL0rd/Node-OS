@@ -3,17 +3,17 @@ local procList
 
 local util = require("/lib/util")
 local file = util.loadModule("file")
-local wm = _G.wm
-local theme = wm.getTheme()
+local pm = _G.pm
+local theme = pm.getTheme()
 local native = term.current()
 
 local previewingThemeNumber = 1
 local previewingTheme = "/sys/themes/" .. fs.list("/sys/themes")[previewingThemeNumber]
 
 local function rebootToApplyChanges()
-  wm.selectProcess(wm.createProcess(function()
+  pm.selectProcess(pm.createProcess(function()
     local function draw()
-      local theme = wm.getTheme()
+      local theme = pm.getTheme()
       term.setBackgroundColor(theme.main.background)
       term.setTextColor(theme.main.text)
       term.setCursorPos(2, 2)
@@ -35,9 +35,9 @@ local function rebootToApplyChanges()
         local m, x, y = e[2], e[3], e[4]
         if m == 1 then
           if x >= 2 and x <= 5 then
-            os.queueEvent("wm_fancyshutdown", "reboot")
+            os.queueEvent("pm_fancyshutdown", "reboot")
           elseif x >= 8 and x <= 14 then
-            wm.endProcess(_G.wm.getSelectedProcessID())
+            pm.endProcess(_G.pm.getSelectedProcessID())
           end
         end
       end

@@ -22,12 +22,6 @@ function settings.getSettings()
         return settings.settings
     end
     settings.settings = s
-    if not settings.settings.groups then -- TODO remove after update
-        settings.settings.groups = {
-            "all"
-        }
-        settings.saveSettings(settings.settings)
-    end
     return settings.settings
 end
 

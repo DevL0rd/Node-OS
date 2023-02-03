@@ -10,8 +10,8 @@ local ok, err = pcall(function()
   local nfte = require("/lib/nfte")
   local file = util.loadModule("file")
   local sets = require("settings").settings
-  local theme = _G.wm.getTheme()
-  local wm = _G.wm
+  local theme = _G.pm.getTheme()
+  local pm = _G.pm
 
   local gpsPos = nil
   local isConnected = false
@@ -42,7 +42,7 @@ local ok, err = pcall(function()
   end
 
   local function draw()
-    procList = wm.listProcesses()
+    procList = pm.listProcesses()
     term.setBackgroundColor(theme.titlebar.background)
     term.clear()
     drawStatusArea()
@@ -62,7 +62,7 @@ local ok, err = pcall(function()
       if not v.dontShowInTitlebar then
         local x, y = term.getCursorPos()
         v.startX = x
-        if v == wm.getSelectedProcess() then
+        if v == pm.getSelectedProcess() then
           term.setTextColor(theme.menu.text)
         else
           term.setTextColor(theme.menu.textSecondary)
@@ -84,14 +84,14 @@ local ok, err = pcall(function()
       if e[1] == "mouse_click" then
         local m, x, y = e[2], e[3], e[4]
         if x >= 1 and x <= 3 and y == 1 then
-          if menuPID and wm.listProcesses()[menuPID] == nil then
+          if menuPID and pm.listProcesses()[menuPID] == nil then
             menuPID = nil
           else
             if menuPID ~= nil then
-              wm.endProcess(menuPID)
+              pm.endProcess(menuPID)
               menuPID = nil
             else
-              menuPID = wm.createProcess("/sys/ui/menu.lua", {
+              menuPID = pm.createProcess("/sys/ui/menu.lua", {
                 x = 1,
                 y = 2,
                 width = 20,
@@ -100,7 +100,7 @@ local ok, err = pcall(function()
                 dontShowInTitlebar = true
               })
 
-              wm.selectProcess(menuPID)
+              pm.selectProcess(menuPID)
             end
           end
         else
@@ -114,12 +114,12 @@ local ok, err = pcall(function()
 
           if pid then
             if procList[pid].minimized then
-              wm.unminimizeProcess(pid)
+              pm.unminimizeProcess(pid)
             end
-            wm.selectProcess(pid)
+            pm.selectProcess(pid)
           end
         end
-      elseif e[1] == "wm_themeupdate" then
+      elseif e[1] == "pm_themeupdate" then
         theme = file.readTable("/etc/colors.cfg")
       end
     end
@@ -159,4 +159,4 @@ local ok, err = pcall(function()
 
 end)
 
-if not ok then os.queueEvent("wm_titlebardeath") end
+if not ok then os.queueEvent("pm_titlebardeath") end

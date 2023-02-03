@@ -206,11 +206,11 @@ function gps.getDistance(pos1, pos2, roundNumber)
 end
 
 function gps.setOffset(pos)
-    local gpsPos = gps.getPosition()
-    if gpsPos then
-        gps.settings.offset.x = pos.x - gpsPos.x
-        gps.settings.offset.y = pos.y - gpsPos.y
-        gps.settings.offset.z = pos.z - gpsPos.z
+    local px, py, pz = _locate(5)
+    if px and (not isNan(px)) then
+        gps.settings.offset.x = pos.x - px
+        gps.settings.offset.y = pos.y - py
+        gps.settings.offset.z = pos.z - pz
         gps.saveSettings(gps.settings)
         return true
     else

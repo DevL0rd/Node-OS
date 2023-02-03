@@ -44,6 +44,14 @@ function tileUpdateThread()
                     end
                     butler_settings.navname = res.name
                 end
+                local res = gps.getInterestingTiles(32, 32, butler_settings.navname)
+                if res then
+                    lastTileUpdatePosition = deepcopy(turtleUtils.pos)
+                    for i, v in ipairs(res.tiles) do
+                        print(i)
+                    end
+                    butler_settings.navname = res.name
+                end
                 saveButler()
             else
                 local distanceFromLastCheck = gps.getDistance(lastTileUpdatePosition, turtleUtils.pos)

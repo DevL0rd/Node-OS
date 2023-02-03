@@ -1,6 +1,6 @@
 local util = require("util")
 local file = util.loadModule("file")
-local theme = _G.wm.getTheme()
+local theme = _G.pm.getTheme()
 
 local function centerText(text, y, offset)
     if not offset then offset = 0 end
@@ -17,7 +17,7 @@ local function draw()
     -- border
     local foregroundColor = theme.window.titlebar.background
 
-    if wm.getSelectedProcessID() == id then
+    if pm.getSelectedProcessID() == id then
         foregroundColor = theme.window.titlebar.backgroundSelected
     end
     
@@ -73,11 +73,11 @@ while true do
     if e[1] == "mouse_click" then
         local m, x, y = e[2], e[3], e[4]
         if y == 2 then
-            os.queueEvent("wm_fancyshutdown", "shutdown")
+            os.queueEvent("pm_fancyshutdown", "shutdown")
         elseif y == 3 then
-            os.queueEvent("wm_fancyshutdown", "reboot")
+            os.queueEvent("pm_fancyshutdown", "reboot")
         elseif y == 5 then
-            wm.endProcess(id)
+            pm.endProcess(id)
         end
     end
 end

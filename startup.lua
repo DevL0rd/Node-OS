@@ -60,6 +60,16 @@ end
 if not fs.exists("home/bin") then
     fs.makeDir("home/bin")
 end
+if not fs.exists("/home/services") then
+    fs.makeDir("/home/services")
+end
+if not fs.exists("/home/drivers") then
+    fs.makeDir("/home/drivers")
+end
+if not fs.exists("/home/startup") then
+    fs.makeDir("/home/startup")
+end
+
 if not fs.exists("home/Documents") then
     fs.makeDir("home/Documents")
 end

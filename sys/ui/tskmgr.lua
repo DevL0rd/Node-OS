@@ -3,8 +3,8 @@ local procList
 
 local util = require("/lib/util")
 local file = util.loadModule("file")
-local theme = _G.wm.getTheme()
-local wm = _G.wm
+local theme = _G.pm.getTheme()
+local pm = _G.pm
 
 local function draw()
   local w, h = term.getSize()
@@ -20,7 +20,7 @@ local function draw()
   term.write("PID")
   term.setCursorPos(7, 2)
   term.write("Name")
-  procList = wm.listProcesses()
+  procList = pm.listProcesses()
   term.setTextColor(theme.main.text)
   local c = 3
   for i, v in pairs(procList) do
@@ -56,7 +56,7 @@ while true do
         c = c + 1
       end
       if x > 1 and x < 7 and y == 1 then
-        wm.selectProcess(wm.createProcess("/sys/ui/run.lua",
+        pm.selectProcess(pm.createProcess("/sys/ui/run.lua",
           {
             width = 24,
             height = 7,
@@ -67,7 +67,7 @@ while true do
   elseif e[1] == "key" then
     local key = e[2]
     if key == keys.delete then
-      wm.endProcess(selectedID)
+      pm.endProcess(selectedID)
     end
   end
 end

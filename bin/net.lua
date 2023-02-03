@@ -1,5 +1,6 @@
 local net = require("/lib/net")
 local gps = require("/lib/gps")
+local settings = require("/lib/settings")
 local termUtils = require("/lib/termUtils")
 local args = { ... }
 
@@ -11,6 +12,9 @@ function printHelp()
     termUtils.print("  pair <computergroup|name|id|-> <pin> - Pairs a computer.")
     termUtils.print("  unpair <computergroup|name|id|-> <pin> - Unpairs a computer.")
     termUtils.print("  list - Lists all computers on network.")
+    termUtils.print("  addgroup <group> - Add group tag, ie homebase.lights, and lights.")
+    termUtils.print("  delgroup <group> - Remove the group tag.")
+    termUtils.print("  listgroups - List groups associated with this computer.")
 end
 
 if #args == 0 then
@@ -109,6 +113,39 @@ elseif args[1] == "list" then
                 termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
             end
         end
+    end
+elseif args[1] == "addgroup" then
+    local group = args[2]
+    if not group then
+        termUtils.print("You must specify a group.", "red")
+        return
+    end
+    if not settings.settings.groups then
+        settings.settings.groups = {}
+    end
+    if not settings.settings.groups[group] then
+        table.insert(settings.settings.groups, group)
+        settings.saveSettings(settings.settings)
+        termUtils.print("Group '" .. group .. "' added! A reboot is required for network to get changes.", "yellow")
+    else
+        termUtils.print("Group '" .. group .. "' already exists.", "yellow")
+    end
+elseif args[1] == "delgroup" then
+    local group = args[2]
+    if not group then
+        termUtils.print("You must specify a group.", "red")
+        return
+    end
+    if settings.settings.groups[group] then
+        settings.settings.groups[group] = nil
+        settings.saveSettings(settings.settings)
+        termUtils.print("Group '" .. group .. "' deleted. A reboot is required for network to get changes.", "yellow")
+    else
+        termUtils.print("Group '" .. group .. "' does not exist.", "red")
+    end
+elseif args[1] == "listgroups" then
+    for i, group in ipairs(settings.settings.groups) do
+        termUtils.print(group)
     end
 else
     printHelp()

@@ -3,7 +3,7 @@ local w, h = term.getSize()
 local box = textbox.new(2, 4, w - 2)
 local util = require("util")
 local file = util.loadModule("file")
-local theme = _G.wm.getTheme()
+local theme = _G.pm.getTheme()
 
 local function draw()
     local w, h = term.getSize()
@@ -20,7 +20,7 @@ local function draw()
 
     local foregroundColor = theme.window.titlebar.background
 
-    if wm.getSelectedProcessID() == id then
+    if pm.getSelectedProcessID() == id then
         foregroundColor = theme.window.titlebar.backgroundSelected
     end
 
@@ -61,13 +61,13 @@ while true do
         if x >= 2 and x <= w - 2 and y == 4 then
             content = box.select()
         elseif x >= 2 and x <= 7 and y == 6 then
-            wm.selectProcess(wm.createProcess(content, {
+            pm.selectProcess(pm.createProcess(content, {
                 x = 2,
                 y = 3,
                 width = 20,
                 height = 10
             }))
-            wm.endProcess(id)
+            pm.endProcess(id)
             break
         end
     end
