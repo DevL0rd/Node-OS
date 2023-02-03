@@ -1,4 +1,5 @@
 local w, h = term.getSize()
+local s = require("/lib/settings").settings
 
 local function loadtable(path)
   local file = fs.open(path, "r")
@@ -14,11 +15,11 @@ end
 _G.package = package
 local pm = require("/lib/processmanager")
 _G.pm = pm
+_G.require = require
+_G.shell = shell
 local sha256 = require("/lib/sha256")
 local util = require("util")
 local file = util.loadModule("file")
-
-
 
 function os_thread()
   local native = term.current()
@@ -41,15 +42,42 @@ function os_thread()
       require(v:gsub("/", "."))
     end
   end
-  local loginID = pm.createProcess("/sys/ui/login.lua", {
-    showTitlebar = true,
-    dontShowInTitlebar = true,
-    disableControls = true,
-    title = "Login",
-    height = 7,
-    y = (h / 2) - 4,
-  })
-  pm.selectProcess(loginID)
+  if s.consoleOnly == false then
+    local loginID = pm.createProcess("/sys/ui/login.lua", {
+      showTitlebar = true,
+      dontShowInTitlebar = true,
+      disableControls = true,
+      title = "Login",
+      height = 7,
+      y = (h / 2) - 4,
+    })
+    pm.selectProcess(loginID)
+  else
+    files = fs.list("/home/startup")
+    for i, v in pairs(files) do
+      v = "/home/startup/" .. v
+      if v:sub(-4) == ".lua" then
+        os.run({
+          _G = _G,
+          package = package
+        }, v)
+      end
+    end
+    pm.selectProcess(pm.createProcess("/sys/shell.lua", {
+      showTitlebar = false,
+      dontShowInTitlebar = true,
+      disableControls = true,
+      title = "Login",
+      x = 1,
+      y = 1,
+      width = w,
+      height = h,
+    }))
+      -- os.run({0
+      --   _G = _G,
+      --   package = package
+      -- }, "/sys/shell.lua")
+  end
   pm.drawProcesses()
   pm.eventLoop()
 end

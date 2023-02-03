@@ -1,6 +1,6 @@
 local util = require("util")
 local file = util.loadModule("file")
-local theme = _G.wm.getTheme()
+local theme = _G.pm.getTheme()
 local sw = require("/lib/scrollwindow")
 local w, h = term.getSize()
 local elements = {
@@ -22,7 +22,7 @@ local function draw()
 
     local foregroundColor = theme.window.titlebar.background
 
-    if wm.getSelectedProcessID() == id then
+    if pm.getSelectedProcessID() == id then
         foregroundColor = theme.window.titlebar.backgroundSelected
     end
 

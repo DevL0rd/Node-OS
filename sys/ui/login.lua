@@ -64,7 +64,7 @@ draw()
 while true do
     draw()
     local e = { os.pullEvent() }
-    if settings.password == "" then
+    if settings.password == "" or settings.consoleOnly then
         os.queueEvent("pm_login")
         pm.endProcess(id)
     end

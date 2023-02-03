@@ -7,12 +7,13 @@ pm.lastProcID = 0
 pm.selectedProcessID = 0
 pm.selectedProcess = nil
 pm.keysDown = {}
-pm.titlebarID = 0
+pm.titlebarID = 1
 pm.resizeStartX = nil
 pm.resizeStartY = nil
 pm.resizeStartW = nil
 pm.resizeStartH = nil
 pm.mvmtX = nil
+pm.isDrawingEnabled = true
 local termWidth, termHeight = term.getSize()
 local native = term.current()
 
@@ -26,12 +27,15 @@ end
 pm.getTheme()
 
 function pm.selectProcess(pid)
-  if pm.processes[pid] then
-    pm.selectedProcessID = pid
-    pm.selectedProcess = pm.processes[pid]
-    pm.selectedProcess.window.setVisible(true)
-    pm.selectedProcess.window.redraw()
-    pm.drawProcesses()
+  if pm.selectedProcessID ~= pid then
+    if pm.processes[pid] then
+      pm.selectedProcessID = pid
+      pm.selectedProcess = pm.processes[pid]
+      if not pm.selectedProcess.minimized then
+        pm.selectedProcess.window.setVisible(true)
+        pm.drawProcess(pm.selectedProcess)
+      end
+    end
   end
 end
 
@@ -166,10 +170,9 @@ end
     if type(path) == "string" then
       run = function()
         _G.require = require
-        _G.pm = pm
+        _G.shell = shell
         _G.id = pm.lastProcID
         _G.table = newTable
-        _G.shell = shell
         local nargs = nil
         if path:find(" ") then
           path, nargs = path:match("(.+)%s+(.+)")
@@ -198,7 +201,9 @@ end
     settings.coroutine = coroutine.create(run)
     coroutine.resume(settings.coroutine)
     settings.window.redraw()
-
+    if pm.selectedProcess == nil then
+      pm.selectedProcess = settings
+    end
     table.insert(pm.processes, pm.lastProcID, settings)
     return pm.lastProcID
   end
@@ -208,16 +213,8 @@ end
     term.setBackgroundColor(pm.theme.desktop.background)
     term.clear()
     term.setCursorPos(1, 5)
-
     if pm.selectedProcess.minimized then
-      pm.selectProcess(pm.titlebarID or 1)
-    else
-      pm.drawProcess(pm.selectedProcess)
-    end
-
-    if pm.selectedProcess.minimized == true then
-      pm.selectedProcessID = 1
-      pm.selectedProcess = pm.processes[1]
+      pm.selectProcess(pm.titlebarID)
     end
 
     for i, v in pairs(pm.processes) do
@@ -230,16 +227,8 @@ end
       end
     end
     pm.drawProcess(pm.selectedProcess)
-    pm.updateProcesses()
   end
   
-  function pm.removeDeadProcesses()
-    for i, v in pairs(pm.processes) do
-      if coroutine.status(v.coroutine) == "dead" then
-        pm.endProcess(i)
-      end
-    end
-  end
 
   function pm.contains(tbl, elem)
     for i, v in pairs(tbl) do
@@ -258,12 +247,6 @@ end
     end
   end
   
-  function pm.updateProcesses()
-    for i, v in pairs(pm.processes) do
-      term.redirect(v.window)
-      coroutine.resume(v.coroutine)
-    end
-  end
   function pm.drawProcess(proc)
     if proc.showTitlebar == false then
       term.redirect(proc.window)
@@ -349,179 +332,178 @@ end
 function pm.eventLoop()
   while true do
     local e = { os.pullEventRaw() }
-
-    if string.sub(e[1], 1, 6) == "mouse_" and not pm.selectedProcess.minimized then
-      local m, x, y = e[2], e[3], e[4]
-      -- Resize checking
-      if pm.resizeStartX ~= nil and m == 2 then
-        if e[1] == "mouse_up" then
-          pm.resizeStartX = nil
-          pm.resizeStartY = nil
-          pm.resizeStartW = nil
-          pm.resizeStartH = nil
-          pm.drawProcesses()
-        elseif e[1] == "mouse_drag" then
-          pm.selectedProcess.width = (pm.resizeStartW + (x - pm.resizeStartX))
-          pm.selectedProcess.height = (pm.resizeStartH + (y - pm.resizeStartY))
-          term.redirect(pm.selectedProcess.window)
-          coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
-          pm.drawProcesses()
-        end
-        -- Moving windows & x and max / min buttons
-      elseif not pm.selectedProcess.minimized and not pm.selectedProcess.maximized and pm.selectedProcess.showTitlebar and
-          x >= pm.selectedProcess.x and x <= pm.selectedProcess.x + pm.selectedProcess.width - 1 and y == pm.selectedProcess.y and
-          e[1] == "mouse_click" and pm.mvmtX == nil then
-        if not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 1 and
-            e[1] == "mouse_click" then
-          pm.endProcess(pm.selectedProcessID)
-          pm.drawProcesses()
-        elseif not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 3 and
-            e[1] == "mouse_click" then
-          pm.selectedProcess.minimized = true
-          pm.drawProcesses()
-        elseif not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 2 and
-            e[1] == "mouse_click" then
-          pm.selectedProcess.maximized = true
-          term.redirect(pm.selectedProcess.window)
-          coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
-          pm.drawProcesses()
-        else
-          pm.mvmtX = x - pm.selectedProcess.x
-          pm.drawProcesses()
-        end
-        -- Max window controls
-      elseif pm.selectedProcess.maximized == true and y == 2 then
-        if not pm.selectedProcess.disableControls and x == termWidth and e[1] == "mouse_click" then
-          pm.endProcess(pm.selectedProcessID)
-          pm.drawProcesses()
-        elseif not pm.selectedProcess.disableControls and x == termWidth - 2 and e[1] == "mouse_click" then
-          pm.selectedProcess.minimized = true
-          pm.drawProcesses()
-        elseif not pm.selectedProcess.disableControls and x == termWidth - 1 then
-          pm.selectedProcess.maximized = false
-          term.redirect(pm.selectedProcess.window)
-          coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
-          pm.drawProcesses()
-        end
-        -- Window movement
-      elseif not pm.selectedProcess.maximized and pm.selectedProcess.showTitlebar and x >= pm.selectedProcess.x - 1 and
-          x <= pm.selectedProcess.x + pm.selectedProcess.width and y >= pm.selectedProcess.y - 1 and y <= pm.selectedProcess.y + 1
-          and e[1] == "mouse_drag" or e[1] == "mouse_up" and pm.mvmtX ~= nil then
-        if e[1] == "mouse_drag" and pm.mvmtX then
-          pm.selectedProcess.x = x - pm.mvmtX + 1
-          pm.selectedProcess.y = y
-          pm.drawProcesses()
-        else
-          pm.mvmtX = nil
-        end
-      elseif not pm.selectedProcess.disallowResizing and x == pm.selectedProcess.x + pm.selectedProcess.width - 1 and
-          y == pm.selectedProcess.y + pm.selectedProcess.height and m == 2 then
-        if e[1] == "mouse_click" then
-          pm.resizeStartX = x
-          pm.resizeStartY = y
-          pm.resizeStartW = pm.selectedProcess.width
-          pm.resizeStartH = pm.selectedProcess.height
-        end
-        -- Passing events (not maximized)
-      elseif not pm.selectedProcess.maximized and x >= pm.selectedProcess.x and
-          x <= pm.selectedProcess.x + pm.selectedProcess.width - 1 and y >= pm.selectedProcess.y and
-          y <= pm.selectedProcess.y + pm.selectedProcess.height - 1 then
-        term.redirect(pm.selectedProcess.window)
-        local pass = {}
-        if pm.selectedProcess.showTitlebar == true then
-          pass = {
-            e[1],
-            m,
-            x - pm.selectedProcess.x + 1,
-            y - pm.selectedProcess.y
-          }
-        else
-          pass = {
-            e[1],
-            m,
-            x - pm.selectedProcess.x + 1,
-            y - pm.selectedProcess.y + 1
-          }
-        end
-        coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
-        -- Passing events (maximized)
-      elseif pm.selectedProcess.maximized and y > 2 then
-        term.redirect(pm.selectedProcess.window)
-        local pass = {}
-        if pm.selectedProcess.showTitlebar == true then
-          pass = {
-            e[1],
-            m,
-            x,
-            y - 2
-          }
-        else
-          pass = {
-            e[1],
-            m,
-            x,
-            y - 1
-          }
-        end
-        coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
-      elseif e[1] == "mouse_click" then
-        for i, v in pairs(pm.processes) do
-          if x >= v.x and x <= v.x + v.width - 1 and y >= v.y and y <= v.y + v.height - 1 then
-            pm.selectProcess(i)
-            local pass = {}
-            if pm.selectedProcess.showTitlebar == true then
-              pass = {
-                e[1],
-                m,
-                x - pm.selectedProcess.x + 1,
-                y - pm.selectedProcess.y
-              }
-            else
-              pass = {
-                e[1],
-                m,
-                x - pm.selectedProcess.x + 1,
-                y - pm.selectedProcess.y + 1
-              }
-            end
+    if e[1] ~= "test" then
+      -- print(e[1])
+      if string.sub(e[1], 1, 6) == "mouse_" and not pm.selectedProcess.minimized then
+        local m, x, y = e[2], e[3], e[4]
+        -- Resize checking
+        if pm.resizeStartX ~= nil and m == 2 then
+          if e[1] == "mouse_up" then
+            pm.resizeStartX = nil
+            pm.resizeStartY = nil
+            pm.resizeStartW = nil
+            pm.resizeStartH = nil
+            pm.drawProcesses()
+          elseif e[1] == "mouse_drag" then
+            pm.selectedProcess.width = (pm.resizeStartW + (x - pm.resizeStartX))
+            pm.selectedProcess.height = (pm.resizeStartH + (y - pm.resizeStartY))
             term.redirect(pm.selectedProcess.window)
-            coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
-            break
+            coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
+            pm.drawProcesses()
+          end
+          -- Moving windows & x and max / min buttons
+        elseif not pm.selectedProcess.minimized and not pm.selectedProcess.maximized and pm.selectedProcess.showTitlebar and
+            x >= pm.selectedProcess.x and x <= pm.selectedProcess.x + pm.selectedProcess.width - 1 and y == pm.selectedProcess.y and
+            e[1] == "mouse_click" and pm.mvmtX == nil then
+          if not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 1 and
+              e[1] == "mouse_click" then
+            pm.endProcess(pm.selectedProcessID)
+            pm.drawProcesses()
+          elseif not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 3 and
+              e[1] == "mouse_click" then
+            pm.selectedProcess.minimized = true
+            pm.drawProcesses()
+          elseif not pm.selectedProcess.disableControls and x == pm.selectedProcess.x + pm.selectedProcess.width - 2 and
+              e[1] == "mouse_click" then
+            pm.selectedProcess.maximized = true
+            term.redirect(pm.selectedProcess.window)
+            coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
+            pm.drawProcesses()
+          else
+            pm.mvmtX = x - pm.selectedProcess.x
+            pm.drawProcesses()
+          end
+          -- Max window controls
+        elseif pm.selectedProcess.maximized == true and y == 2 then
+          if not pm.selectedProcess.disableControls and x == termWidth and e[1] == "mouse_click" then
+            pm.endProcess(pm.selectedProcessID)
+            pm.drawProcesses()
+          elseif not pm.selectedProcess.disableControls and x == termWidth - 2 and e[1] == "mouse_click" then
+            pm.selectedProcess.minimized = true
+            pm.drawProcesses()
+          elseif not pm.selectedProcess.disableControls and x == termWidth - 1 then
+            pm.selectedProcess.maximized = false
+            term.redirect(pm.selectedProcess.window)
+            coroutine.resume(pm.selectedProcess.coroutine, "term_resize")
+            pm.drawProcesses()
+          end
+          -- Window movement
+        elseif not pm.selectedProcess.maximized and pm.selectedProcess.showTitlebar and x >= pm.selectedProcess.x - 1 and
+            x <= pm.selectedProcess.x + pm.selectedProcess.width and y >= pm.selectedProcess.y - 1 and y <= pm.selectedProcess.y + 1
+            and e[1] == "mouse_drag" or e[1] == "mouse_up" and pm.mvmtX ~= nil then
+          if e[1] == "mouse_drag" and pm.mvmtX then
+            pm.selectedProcess.x = x - pm.mvmtX + 1
+            pm.selectedProcess.y = y
+            pm.drawProcesses()
+          else
+            pm.mvmtX = nil
+          end
+        elseif not pm.selectedProcess.disallowResizing and x == pm.selectedProcess.x + pm.selectedProcess.width - 1 and
+            y == pm.selectedProcess.y + pm.selectedProcess.height and m == 2 then
+          if e[1] == "mouse_click" then
+            pm.resizeStartX = x
+            pm.resizeStartY = y
+            pm.resizeStartW = pm.selectedProcess.width
+            pm.resizeStartH = pm.selectedProcess.height
+          end
+          -- Passing events (not maximized)
+        elseif not pm.selectedProcess.maximized and x >= pm.selectedProcess.x and
+            x <= pm.selectedProcess.x + pm.selectedProcess.width - 1 and y >= pm.selectedProcess.y and
+            y <= pm.selectedProcess.y + pm.selectedProcess.height - 1 then
+          term.redirect(pm.selectedProcess.window)
+          local pass = {}
+          if pm.selectedProcess.showTitlebar == true then
+            pass = {
+              e[1],
+              m,
+              x - pm.selectedProcess.x + 1,
+              y - pm.selectedProcess.y
+            }
+          else
+            pass = {
+              e[1],
+              m,
+              x - pm.selectedProcess.x + 1,
+              y - pm.selectedProcess.y + 1
+            }
+          end
+          coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
+          -- Passing events (maximized)
+        elseif pm.selectedProcess.maximized and y > 2 then
+          term.redirect(pm.selectedProcess.window)
+          local pass = {}
+          if pm.selectedProcess.showTitlebar == true then
+            pass = {
+              e[1],
+              m,
+              x,
+              y - 2
+            }
+          else
+            pass = {
+              e[1],
+              m,
+              x,
+              y - 1
+            }
+          end
+          coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
+        elseif e[1] == "mouse_click" then
+          for i, v in pairs(pm.processes) do
+            if x >= v.x and x <= v.x + v.width - 1 and y >= v.y and y <= v.y + v.height - 1 then
+              pm.selectProcess(i)
+              local pass = {}
+              if pm.selectedProcess.showTitlebar == true then
+                pass = {
+                  e[1],
+                  m,
+                  x - pm.selectedProcess.x + 1,
+                  y - pm.selectedProcess.y
+                }
+              else
+                pass = {
+                  e[1],
+                  m,
+                  x - pm.selectedProcess.x + 1,
+                  y - pm.selectedProcess.y + 1
+                }
+              end
+              term.redirect(pm.selectedProcess.window)
+              coroutine.resume(pm.selectedProcess.coroutine, table.unpack(pass))
+              break
+            end
           end
         end
-      end
-    elseif e[1] == "char" or string.sub(e[1], 1, 3) == "key" or e[1] == "paste" then
-      if e[1] == "key" then
-        table.insert(pm.keysDown, e[2])
-      elseif e[1] == "key_up" then
-        if isKeyDown(e[2]) then
-          table.remove(pm.keysDown, isKeyDown(e[2]))
+      elseif e[1] == "char" or string.sub(e[1], 1, 3) == "key" or e[1] == "paste" then
+        if e[1] == "key" then
+          table.insert(pm.keysDown, e[2])
+        elseif e[1] == "key_up" then
+          if isKeyDown(e[2]) then
+            table.remove(pm.keysDown, isKeyDown(e[2]))
+          end
         end
-      end
 
-      if isKeyDown(keys.leftCtrl) and isKeyDown(keys.leftShift) and isKeyDown(keys.delete) then
-        pm.selectProcess(pm.createProcess("/sys/ui/tskmgr.lua", {
-          width = 30,
-          height = 15,
-          title = "Task Manager"
-        }))
-        pm.drawProcesses()
-      elseif isKeyDown(keys.leftCtrl) and isKeyDown(keys.leftShift) and isKeyDown(keys.t) then
-        pm.selectProcess(pm.createProcess("/sys/shell.lua", {
-          width = 40,
-          height = 15,
-          title = "Shell"
-        }))
-        pm.drawProcesses()
-      end
-      term.redirect(pm.selectedProcess.window)
-      coroutine.resume(pm.selectedProcess.coroutine, table.unpack(e))
-    elseif e[1] == "pm_fancyshutdown" then
-      term.redirect(native)
-      shell.run("/sys/ui/fancyshutdown.lua", e[2])
-    elseif e[1] == "pm_login" then
-      
-      if s.consoleOnly == false then
+        if isKeyDown(keys.leftCtrl) and isKeyDown(keys.leftShift) and isKeyDown(keys.delete) then
+          pm.selectProcess(pm.createProcess("/sys/ui/tskmgr.lua", {
+            width = 30,
+            height = 15,
+            title = "Task Manager"
+          }))
+          pm.drawProcesses()
+        elseif isKeyDown(keys.leftCtrl) and isKeyDown(keys.leftShift) and isKeyDown(keys.t) then
+          pm.selectProcess(pm.createProcess("/sys/shell.lua", {
+            width = 40,
+            height = 15,
+            title = "Shell"
+          }))
+          pm.drawProcesses()
+        end
+        term.redirect(pm.selectedProcess.window)
+        coroutine.resume(pm.selectedProcess.coroutine, table.unpack(e))
+      elseif e[1] == "pm_fancyshutdown" then
+        term.redirect(native)
+        shell.run("/sys/ui/fancyshutdown.lua", e[2])
+      elseif e[1] == "pm_login" then
         pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
           x = 1,
           y = 1,
@@ -530,6 +512,7 @@ function pm.eventLoop()
           showTitlebar = false,
           dontShowInTitlebar = true
         })
+        pm.selectProcess(pm.titlebarID)
         files = fs.list("/home/startup")
         for i, v in pairs(files) do
           v = "/home/startup/" .. v
@@ -542,69 +525,29 @@ function pm.eventLoop()
             })
           end
         end
-        pm.selectProcess(pm.titlebarID)
+      elseif e[1] == "pm_titlebardeath" then
+        pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
+          x = 1,
+          y = 1,
+          width = termWidth,
+          height = 1,
+          showTitlebar = false,
+          dontShowInTitlebar = true
+        })
       else
-          local newTable = table
-          newTable["contains"] = pm.contains
-          _G.require = require
-          _G.table = newTable
-          _G.shell = shell
-          term.setBackgroundColor(colors.black)
-          term.clear()
-          files = fs.list("/home/startup")
-          for i, v in pairs(files) do
-            v = "/home/startup/" .. v
-            if v:sub(-4) == ".lua" then
-              os.run({
-                _G = _G,
-                package = package
-              }, v)
-            end
-          end
-          pm.selectProcess(pm.createProcess("/sys/shell.lua", {
-            showTitlebar = false,
-            dontShowInTitlebar = true,
-            disableControls = true,
-            x = 1,
-            y = 1,
-            width = termWidth,
-            height = termHeight
-          }))
+        if e[1] == "pm_themeupdate" then
+          pm.theme = file.readTable("/etc/colors.cfg")
+        end
+        for i, v in pairs(pm.processes) do
+          term.redirect(v.window)
+          coroutine.resume(v.coroutine, table.unpack(e))
+          -- v.window.redraw()
+        end
+        if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" then
+          -- print(e[1])
+          pm.drawProcesses()
+        end
       end
-    elseif e[1] == "pm_titlebardeath" then
-      pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
-        x = 1,
-        y = 1,
-        width = termWidth,
-        height = 1,
-        showTitlebar = false,
-        dontShowInTitlebar = true
-      })
-    else
-      if e[1] == "pm_themeupdate" then
-        pm.theme = file.readTable("/etc/colors.cfg")
-      end
-      for i, v in pairs(pm.processes) do
-        term.redirect(v.window)
-        coroutine.resume(v.coroutine, table.unpack(e))
-        v.window.redraw()
-      end
-      pm.drawProcesses()
-    end
-
-    -- Update windows
-    term.redirect(pm.selectedProcess.window)
-    pm.removeDeadProcesses()
-    for i, v in pairs(pm.processes) do
-      if i ~= pm.selectedProcessID then
-        term.redirect(v.window)
-        coroutine.resume(v.coroutine, "keepalive")
-      end
-    end
-    if pm.selectedProcess.minimized then
-      pm.selectProcess(pm.titlebarID or 1)
-    else
-      pm.drawProcess(pm.selectedProcess)
     end
   end
 end
