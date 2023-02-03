@@ -1,3 +1,8 @@
+
+if not term.isColor() then
+    printError("Please use a color terminal.")
+    return false
+end
 term.clear()
 term.setCursorPos(1, 1)
 --Install to PC if inserted into disk drive.
@@ -170,6 +175,15 @@ while not settings.settings.pin do
     print("Please input a SECURE pairing pin:")
     settings.settings.pin = read("*")
 end
+while settings.settings.consoleOnly == nil do
+    print("Will this computer be console only? (y/n)")
+    instr = string.lower(read())
+    if instr == "y" then
+        settings.settings.consoleOnly = true
+    elseif instr == "n" then
+        settings.settings.consoleOnly = false
+    end
+end
 term.clear()
 settings.saveSettings(settings.settings)
 local w, h = term.getSize()
@@ -180,46 +194,37 @@ function yield()
     os.pullEvent("randomEvent")
 end
 
-if not term.isColor() then
-    printError("Please use a color terminal")
-    return false
-end
 
--- local function animate()
---     local frames = {
---         { i = false, c = "\129" },
---         { i = false, c = "\130" },
---         { i = false, c = "\136" },
---         { i = true, c = "\159" },
---         { i = false, c = "\144" },
---         { i = false, c = "\132" },
---     }
-
---     local function drawFrame(frame)
---         term.setBackgroundColor(colors.gray)
---         term.setTextColor(colors.white)
---         if frame.i then
---             term.setBackgroundColor(colors.white)
---             term.setTextColor(colors.gray)
---         end
---         write(frame.c)
---     end
-
---     term.setCursorPos(w / 2 - string.len("Starting NodeOS") / 2 + 1, h / 2 + 2)
---     term.write("Starting NodeOS")
-
---     while true do
---         for i, frame in pairs(frames) do
---             if fail then while true do sleep(1) end end
---             term.setCursorPos(w / 2, h / 2)
---             drawFrame(frame)
---             sleep(0.25)
---         end
---     end
--- end
 
 term.setBackgroundColor(colors.black)
 term.clear()
-shell.run(
-    "/sys/kernel.lua"
-)
+
+-- Function DeviceDetect
+function detectDevice(DeviceName)
+    local DeviceSide = nil
+    for k,v in pairs(redstone.getSides()) do
+        if peripheral.getType(v)==DeviceName then
+            DeviceSide = v
+            break
+        end
+    end
+    return DeviceSide
+end
+    
+-- Usage:
+local MonitorSide = detectDevice("monitor")
+if MonitorSide then
+    local monitor = peripheral.wrap(MonitorSide)
+    monitor.setTextScale(0.5)
+    term.clear()
+    print("Please use this console for input:")
+    shell.run(
+        "monitor " .. MonitorSide .. " /sys/kernel.lua"
+    )
+else
+    shell.run(
+        "/sys/kernel.lua"
+    )
+end
+--  if there is monitor run on monitor
+

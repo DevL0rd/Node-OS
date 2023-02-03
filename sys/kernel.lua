@@ -1,6 +1,5 @@
 local logs = {}
 local w, h = term.getSize()
-
 parallel.os_threads = {}
 
 parallel.addOSThread = function(thread)
@@ -29,15 +28,11 @@ for i, v in pairs(packageDirs) do
   package.path = package.path .. ";" .. v
 end
 _G.package = package
-local startColors = { r = 76 / 255, g = 153 / 255, b = 178 / 255 }
+local settings = require("/lib/settings").settings
+local sha256 = require("/lib/sha256")
+local util = require("util")
+local file = util.loadModule("file")
 
-term.setBackgroundColor(colors.cyan)
-term.clear()
-
-for i = 0, 1, 0.1 do
-  term.setPaletteColour(colors.cyan, startColors.r * i, startColors.g * i, startColors.b * i)
-  sleep()
-end
 
 local function main()
   local processes = {}
@@ -56,8 +51,6 @@ local function main()
   local resizeStartH
   local mvmtX = nil
 
-  local util = require("util")
-  local file = util.loadModule("file")
 
   local serviceWindow = window.create(native, 1, 1, 1, 1, false)
 
@@ -704,7 +697,31 @@ function start()
 end
 
 _G.wm = wm
-parallel.addOSThread(main)
+if settings.consoleOnly == false then
+  parallel.addOSThread(main)
+else
+  function shellThread()
+    local newTable = table
+    newTable["contains"] = contains
+    _G.require = require
+    _G.table = newTable
+    _G.shell = shell
+    term.clear()
+    print("Welcome to NodeOS!")
+    if settings.password then
+      while not passCorrect do
+        print("Please enter your password:")
+        pass = read("*")
+        passCorrect = sha256(pass) == settings.password
+      end
+    end
+    os.run({
+      _G = _G,
+      package = package
+    }, "/sys/shell.lua")
+  end
+  parallel.addOSThread(shellThread)
+end
 files = fs.list("/sys/services")
 for i, v in pairs(files) do
   v = "/sys/services/" .. v

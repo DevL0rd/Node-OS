@@ -10,7 +10,8 @@ local settings = {
         master = 0,
         groups = {
             "all"
-        }
+        },
+        consoleOnly = nil
     }
 }
 
