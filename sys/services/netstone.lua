@@ -70,7 +70,7 @@ local function scanInRange_thread()
     end
 end
 
-parallel.addOSThread(scanInRange_thread)
+pm.createProcess(scanInRange_thread, {isService=true, title="scanInRange_thread"})
 
 function listen_netStoneCommand()
     while true do
@@ -220,7 +220,7 @@ function listen_netStoneCommand()
     end
 end
 
-parallel.addOSThread(listen_netStoneCommand)
+pm.createProcess(listen_netStoneCommand, {isService=true, title="listen_netStoneCommand"})
 
 local settings = netstone.getSettings()
 if settings.state then

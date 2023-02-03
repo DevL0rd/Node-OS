@@ -1,5 +1,6 @@
 local util = require("util")
 local file = util.loadModule("file")
+local s = require("/lib/settings").settings
 local pm = {}
 pm.processes = {}
 pm.lastProcID = 0
@@ -127,7 +128,7 @@ end
     if settings.showTitlebar == nil or settings.showTitlebar == true then
       settings.showTitlebar = true
     end
-    if settings.isService == true then
+    if settings.isService then
       settings.showTitlebar = false
       settings.dontShowInTitlebar = true
       settings.disableControls = true
@@ -519,27 +520,57 @@ function pm.eventLoop()
       term.redirect(native)
       shell.run("/sys/ui/fancyshutdown.lua", e[2])
     elseif e[1] == "pm_login" then
-      pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
-        x = 1,
-        y = 1,
-        width = termWidth,
-        height = 1,
-        showTitlebar = false,
-        dontShowInTitlebar = true
-      })
-      files = fs.list("/home/startup")
-      for i, v in pairs(files) do
-        v = "/home/startup/" .. v
-        if v:sub(-4) == ".lua" then
-          pm.createProcess(v, {
-            x = i + 2,
-            y = i + 2,
-            width = 15,
-            height = 6
-          })
+      
+      if s.consoleOnly == false then
+        pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
+          x = 1,
+          y = 1,
+          width = termWidth,
+          height = 1,
+          showTitlebar = false,
+          dontShowInTitlebar = true
+        })
+        files = fs.list("/home/startup")
+        for i, v in pairs(files) do
+          v = "/home/startup/" .. v
+          if v:sub(-4) == ".lua" then
+            pm.createProcess(v, {
+              x = i + 2,
+              y = i + 2,
+              width = 15,
+              height = 6
+            })
+          end
         end
+        pm.selectProcess(pm.titlebarID)
+      else
+          local newTable = table
+          newTable["contains"] = pm.contains
+          _G.require = require
+          _G.table = newTable
+          _G.shell = shell
+          term.setBackgroundColor(colors.black)
+          term.clear()
+          files = fs.list("/home/startup")
+          for i, v in pairs(files) do
+            v = "/home/startup/" .. v
+            if v:sub(-4) == ".lua" then
+              os.run({
+                _G = _G,
+                package = package
+              }, v)
+            end
+          end
+          pm.selectProcess(pm.createProcess("/sys/shell.lua", {
+            showTitlebar = false,
+            dontShowInTitlebar = true,
+            disableControls = true,
+            x = 1,
+            y = 1,
+            width = termWidth,
+            height = termHeight
+          }))
       end
-      pm.selectProcess(pm.titlebarID)
     elseif e[1] == "pm_titlebardeath" then
       pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
         x = 1,

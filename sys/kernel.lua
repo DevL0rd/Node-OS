@@ -1,10 +1,4 @@
 local w, h = term.getSize()
-parallel.os_threads = {}
-
-parallel.addOSThread = function(thread)
-  table.insert(parallel.os_threads, thread)
-end
-
 
 local function loadtable(path)
   local file = fs.open(path, "r")
@@ -20,15 +14,33 @@ end
 _G.package = package
 local pm = require("/lib/processmanager")
 _G.pm = pm
-local settings = require("/lib/settings").settings
 local sha256 = require("/lib/sha256")
 local util = require("util")
 local file = util.loadModule("file")
 
 
-local function main()
+
+function os_thread()
   local native = term.current()
   local w, h = term.getSize()
+  files = fs.list("/sys/services")
+  for i, v in pairs(files) do
+    v = "/sys/services/" .. v
+    if v:sub(-4) == ".lua" then
+      --remove the .lua
+      v = v:sub(1, -5)
+      require(v:gsub("/", "."))
+    end
+  end
+  files = fs.list("/home/services")
+  for i, v in pairs(files) do
+    v = "/home/services/" .. v
+    if v:sub(-4) == ".lua" then
+      --remove the .lua
+      v = v:sub(1, -5)
+      require(v:gsub("/", "."))
+    end
+  end
   local loginID = pm.createProcess("/sys/ui/login.lua", {
     showTitlebar = true,
     dontShowInTitlebar = true,
@@ -40,10 +52,6 @@ local function main()
   pm.selectProcess(loginID)
   pm.drawProcesses()
   pm.eventLoop()
-end
-
-function os_thread()
-  parallel.waitForAll(unpack(parallel.os_threads))
 end
 
 function start()
@@ -78,57 +86,4 @@ function start()
   end)
 end
 
-if settings.consoleOnly == false then
-  parallel.addOSThread(main)
-else
-  function shellThread()
-    local newTable = table
-    newTable["contains"] = pm.contains
-    _G.require = require
-    _G.table = newTable
-    _G.shell = shell
-    term.clear()
-    files = fs.list("/home/startup")
-    for i, v in pairs(files) do
-      v = "/home/startup/" .. v
-      if v:sub(-4) == ".lua" then
-        os.run({
-          _G = _G,
-          package = package
-        }, v)
-      end
-    end
-    print("Welcome to NodeOS!")
-    if settings.password ~= "" then
-      while not passCorrect do
-        print("Please enter your password:")
-        pass = read("*")
-        passCorrect = sha256(pass) == settings.password
-      end
-    end
-    os.run({
-      _G = _G,
-      package = package
-    }, "/sys/shell.lua")
-  end
-  parallel.addOSThread(shellThread)
-end
-files = fs.list("/sys/services")
-for i, v in pairs(files) do
-  v = "/sys/services/" .. v
-  if v:sub(-4) == ".lua" then
-    --remove the .lua
-    v = v:sub(1, -5)
-    require(v:gsub("/", "."))
-  end
-end
-files = fs.list("/home/services")
-for i, v in pairs(files) do
-  v = "/home/services/" .. v
-  if v:sub(-4) == ".lua" then
-    --remove the .lua
-    v = v:sub(1, -5)
-    require(v:gsub("/", "."))
-  end
-end
 start()

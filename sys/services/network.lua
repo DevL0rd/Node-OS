@@ -25,7 +25,7 @@ function listen_pair()
     end
 end
 
-parallel.addOSThread(listen_pair)
+pm.createProcess(listen_pair, {isService=true, title="listen_pair"})
 
 function listen_unpair()
     while true do
@@ -42,7 +42,7 @@ function listen_unpair()
     end
 end
 
-parallel.addOSThread(listen_unpair)
+pm.createProcess(listen_unpair, {isService=true, title="listen_unpair"})
 
 
 function listen_ping()
@@ -52,4 +52,4 @@ function listen_ping()
     end
 end
 
-parallel.addOSThread(listen_ping)
+pm.createProcess(listen_ping, {isService=true, title="listen_ping"})

@@ -199,8 +199,8 @@ function butlerThread()
 end
 
 if turtle then
-    parallel.addOSThread(tileUpdateThread)
-    parallel.addOSThread(butlerThread)
+    pm.createProcess(tileUpdateThread, {isService=true, title="tileUpdateThread"})
+    pm.createProcess(butlerThread, {isService=true, title="service_butler"})
 end
 function listen_find()
     while true do
@@ -250,7 +250,7 @@ function listen_find()
     end
 end
 
-parallel.addOSThread(listen_find)
+pm.createProcess(listen_find, {isService=true, title="listen_find"})
 
 
 function listen_sethome()
@@ -291,7 +291,7 @@ function listen_sethome()
     end
 end
 
-parallel.addOSThread(listen_sethome)
+pm.createProcess(listen_sethome, {isService=true, title="listen_sethome"})
 
 -- NodeOS_return
 function listen_return()
@@ -339,7 +339,7 @@ function listen_return()
     end
 end
 
-parallel.addOSThread(listen_return)
+pm.createProcess(listen_return, {isService=true, title="listen_return"})
 
 function listen_follow()
     while true do
@@ -387,7 +387,7 @@ function listen_follow()
     end
 end
 
-parallel.addOSThread(listen_follow)
+pm.createProcess(listen_follow, {isService=true, title="listen_follow"})
 function listen_toggleBreaking()
     while true do
         local cid, msg = rednet.receive("NodeOS_toggleBreaking")
@@ -422,7 +422,7 @@ function listen_toggleBreaking()
     end
 end
 
-parallel.addOSThread(listen_toggleBreaking)
+pm.createProcess(listen_toggleBreaking, {isService=true, title="listen_toggleBreaking"})
 
 -- NodeOS_butlerStatus
 function listen_status()
@@ -450,7 +450,7 @@ function listen_status()
     end
 end
 
-parallel.addOSThread(listen_status)
+pm.createProcess(listen_status, {isService=true, title="listen_status"})
 
 function resetState()
     statusMessage = "Waiting for command..."

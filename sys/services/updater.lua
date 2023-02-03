@@ -33,7 +33,7 @@ if os.getComputerID() == settings.master then
         end
     end
 
-    parallel.addOSThread(listen_publishUpdate)
+    pm.createProcess(listen_publishUpdate, {isService=true, title="listen_publishUpdate"})
 
     function listen_getUpdate()
         while true do
@@ -56,7 +56,7 @@ if os.getComputerID() == settings.master then
         end
     end
 
-    parallel.addOSThread(listen_getUpdate)
+    pm.createProcess(listen_getUpdate, {isService=true, title="listen_getUpdate"})
 
     function listen_getVer()
         while true do
@@ -70,7 +70,7 @@ if os.getComputerID() == settings.master then
         end
     end
 
-    parallel.addOSThread(listen_getVer)
+    pm.createProcess(listen_getVer, {isService=true, title="listen_getVer"})
 
 else
     function checkForUpdates()
@@ -106,5 +106,5 @@ else
         end
     end
 
-    parallel.addOSThread(checkForUpdates)
+    pm.createProcess(checkForUpdates, {isService=true, title="checkForUpdates"})
 end

@@ -59,4 +59,5 @@ function drivers_service()
     end
 end
 
-parallel.addOSThread(drivers_service)
+
+pm.createProcess(drivers_service, {isService=true, title="service_drivers"})

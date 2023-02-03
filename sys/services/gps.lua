@@ -15,7 +15,7 @@ function listen_giveLocalComputerDetails()
     end
 end
 
-parallel.addOSThread(listen_giveLocalComputerDetails)
+pm.createProcess(listen_giveLocalComputerDetails, {isService=true, title="listen_giveLocalComputerDetails"})
 
 function giveLocalComputerDetails_thread()
     while true do
@@ -34,7 +34,7 @@ function giveLocalComputerDetails_thread()
     end
 end
 
-parallel.addOSThread(giveLocalComputerDetails_thread)
+pm.createProcess(giveLocalComputerDetails_thread, {isService=true, title="service_giveLocalComputerDetails"})
 
 
 function listen_setOffset()
@@ -48,7 +48,8 @@ function listen_setOffset()
     end
 end
 
-parallel.addOSThread(listen_setOffset)
+pm.createProcess(listen_setOffset, {isService=true, title="listen_setOffset"})
+
 function Set(list)
     local set = {}
     for _, l in ipairs(list) do set[l] = true end
@@ -184,8 +185,7 @@ if os.getComputerID() == settings.master then
         end
     end
 
-    parallel.addOSThread(listen_getWorldTiles)
-
+    pm.createProcess(listen_getWorldTiles, {isService=true, title="listen_getWorldTiles"})
     -- local getBlockNameFromPartialName_cache = {}
     function getBlockNameFromPartialName(partialName)
         if interestingTiles[partialName] then
@@ -337,8 +337,7 @@ if os.getComputerID() == settings.master then
             end
         end
     end
-
-    parallel.addOSThread(listen_getInterestingTiles)
+    pm.createProcess(listen_getInterestingTiles, {isService=true, title="listen_getInterestingTiles"})
 
     function listen_removeInterestingTile()
         while true do
@@ -358,8 +357,7 @@ if os.getComputerID() == settings.master then
             end
         end
     end
-
-    parallel.addOSThread(listen_removeInterestingTile)
+    pm.createProcess(listen_removeInterestingTile, {isService=true, title="service_removeInterestingTile"})
 
     function listen_getInterestingTilesBlacklist()
         while true do
@@ -368,7 +366,7 @@ if os.getComputerID() == settings.master then
         end
     end
 
-    parallel.addOSThread(listen_getInterestingTilesBlacklist)
+    pm.createProcess(listen_getInterestingTilesBlacklist, {isService=true, title="service_getInterestingTilesBlacklist"})
 
     function saveServerTiles()
         while true do
@@ -401,7 +399,7 @@ if os.getComputerID() == settings.master then
     end
 
     loadServerTiles()
-    parallel.addOSThread(saveServerTiles)
+    pm.createProcess(saveServerTiles, {isService=true, title="service_saveTiles"})
 end
 
 
@@ -426,4 +424,4 @@ function trimLocalComputers()
     end
 end
 
-parallel.addOSThread(trimLocalComputers)
+pm.createProcess(trimLocalComputers, {isService=true, title="service_trimLocalComputers"})
