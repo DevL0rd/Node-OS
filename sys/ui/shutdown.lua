@@ -1,5 +1,3 @@
-local util = require("util")
-local file = util.loadModule("file")
 local theme = _G.pm.getTheme()
 
 local function centerText(text, y, offset)

@@ -4,8 +4,6 @@ local ok, err = pcall(function()
   local w = term.getSize()
   local running = {}
   local procList
-  local gps = require("/lib/gps")
-  local net = require("/lib/net")
   local util = require("/lib/util")
   local nfte = require("/lib/nfte")
   local file = util.loadModule("file")

@@ -1,7 +1,5 @@
 local czip = require("/lib/czip")
-local net = require("/lib/net")
 local ver = 0
-local settings = require("/lib/settings").settings
 if not fs.exists("sys/ver.txt") then
     local file = fs.open("sys/ver.txt", "w")
     file.write(ver)
@@ -28,12 +26,12 @@ ver = ver + 1
 local file = fs.open("sys/ver.txt", "w")
 file.write(ver)
 file.close()
-if os.getComputerID() == settings.master then
+if os.getComputerID() == sets.settings.master then
     packNodeOS()
     fs.copy("tmp/updater/NodeOS.czip", "etc/updater/NodeOS-" .. ver .. ".czip")
     print("NodeOS updated to version " .. ver .. "!")
     return
-elseif not net.getPairedDevices()[settings.master] then
+elseif not net.getPairedDevices()[sets.settings.master] then
     print("Master PC is not paired!")
     return
 end
@@ -47,7 +45,7 @@ file.close()
 res = net.emit("NodeOS_publishUpdate", {
     data = data,
     ver = ver
-}, settings.master)
+}, sets.settings.master)
 
 if res and res.success then
     print("Update published to master PC!")

@@ -1,5 +1,4 @@
 local w, h = term.getSize()
-local s = require("/lib/settings").settings
 
 local function loadtable(path)
   local file = fs.open(path, "r")
@@ -12,15 +11,21 @@ local packageDirs = loadtable("/etc/libs.cfg")
 for i, v in pairs(packageDirs) do
   package.path = package.path .. ";" .. v
 end
-_G.package = package
-local pm = require("/lib/processmanager")
-_G.pm = pm
 _G.require = require
+_G.package = package
 _G.shell = shell
 local sha256 = require("/lib/sha256")
 local util = require("util")
-local file = util.loadModule("file")
-
+file = util.loadModule("file")
+_G.file = file
+sets = require("/lib/settings")
+_G.sets = sets
+net = require("/lib/net")
+_G.net = net
+gps = require("/lib/gps")
+_G.gps = gps
+pm = require("/sys/processmanager")
+_G.pm = pm
 function os_thread()
   local native = term.current()
   local w, h = term.getSize()
@@ -42,7 +47,7 @@ function os_thread()
       require(v:gsub("/", "."))
     end
   end
-  if s.consoleOnly == false then
+  if sets.settings.consoleOnly == false then
     local loginID = pm.createProcess("/sys/ui/login.lua", {
       showTitlebar = true,
       dontShowInTitlebar = true,

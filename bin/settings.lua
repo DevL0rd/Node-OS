@@ -1,4 +1,3 @@
-local settings = require("/lib/settings")
 local termUtils = require("/lib/termUtils")
 local sha256 = require("/lib/sha256")
 local args = { ... }
@@ -23,36 +22,36 @@ if command == "set" then
         termUtils.print("Please enter a new password:")
         local newPassword = read("*")
         if newPassword == "" then
-            settings.settings.password = ""
-            settings.saveSettings(settings.settings)
+            sets.settings.password = ""
+            settings.saveSettings()
         else
             termUtils.print("Please enter the password again:")
             local pass2 = read("*")
             if pass2 ~= newPassword then
-                settings.settings.password = ""
+                sets.settings.password = ""
                 termUtils.print("Passwords do not match.", "red")
             else
-                settings.settings.password = sha256(newPassword)
-                settings.saveSettings(settings.settings)
+                sets.settings.password = sha256(newPassword)
+                settings.saveSettings()
             end
         end
     elseif setting == "pin" then
-        settings.settings.pin = value
+        sets.settings.pin = value
         termUtils.print("Pin set! A reboot is required for network to get changes.", "yellow")
-        settings.saveSettings(settings.settings)
+        settings.saveSettings()
     elseif setting == "master" then
-        settings.settings.master = value
+        sets.settings.master = value
         termUtils.print("Master ID set! A reboot is required for network to get changes.", "yellow")
-        settings.saveSettings(settings.settings)
+        settings.saveSettings()
     elseif setting == "consoleonly" then
         if value == "true" then
-            settings.settings.consoleOnly = true
+            sets.settings.consoleOnly = true
             termUtils.print("Console only set! A reboot is required to switch to console only mode.", "yellow")
-            settings.saveSettings(settings.settings)
+            settings.saveSettings()
         elseif value == "false" then
-            settings.settings.consoleOnly = false
+            sets.settings.consoleOnly = false
             termUtils.print("Console only set! A reboot is required to switch to console only mode.", "yellow")
-            settings.saveSettings(settings.settings)
+            settings.saveSettings()
         else
             termUtils.print("Invalid value!", "red")
         end
@@ -66,11 +65,11 @@ elseif command == "get" then
     elseif setting == "password" then
         termUtils.print("The password is unreadable after set.", "yellow")
     elseif setting == "pin" then
-        termUtils.print(settings.settings.pin)
+        termUtils.print(sets.settings.pin)
     elseif setting == "master" then
-        termUtils.print(settings.settings.master)
+        termUtils.print(sets.settings.master)
     elseif setting == "consoleonly" then
-        if settings.settings.consoleOnly then
+        if sets.settings.consoleOnly then
             termUtils.print("true")
         else
             termUtils.print("false")
@@ -80,22 +79,22 @@ elseif command == "get" then
     end
 elseif command == "list" then
     termUtils.print("name: " .. os.getComputerLabel())
-    if settings.settings.password == "" then
+    if sets.settings.password == "" then
         termUtils.print("password: none")
     else
         termUtils.print("password: set")
     end
-    if settings.settings.pin == "" then
+    if sets.settings.pin == "" then
         termUtils.print("pin: none")
     else
         termUtils.print("pin: set")
     end
-    if settings.settings.consoleOnly then
+    if sets.settings.consoleOnly then
         termUtils.print("consoleOnly: true")
     else
         termUtils.print("consoleOnly: false")
     end
-    termUtils.print("master: " .. settings.settings.master)
+    termUtils.print("master: " .. sets.settings.master)
 else
     printHelp()
 end

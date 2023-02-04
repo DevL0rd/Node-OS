@@ -1,5 +1,3 @@
-local utils = require("util")
-local file = utils.loadModule("file")
 local history_path = "etc/shell/history.dat"
 local history = {}
 if fs.exists(history_path) then

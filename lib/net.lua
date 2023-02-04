@@ -1,25 +1,23 @@
-local util = require("/lib/util")
-local file = util.loadModule("file")
 local net = {}
 local net_settings = {
     responseTimeout = 10
 }
 local pairedClientsPath = "etc/net/pairedClients.dat"
 local pairedDevicesPath = "etc/net/pairedDevices.dat"
+local clients = file.readTable(pairedClientsPath)
+if not clients then
+    clients = {}
+end
 function net.getPairedClients()
-    local clients = file.readTable(pairedClientsPath)
-    if not clients then
-        return {}
-    end
     return clients
 end
 
+local pairedDevices = file.readTable(pairedDevicesPath)
+if not pairedDevices then
+    pairedDevices = {}
+end
 function net.getPairedDevices()
-    local devices = file.readTable(pairedDevicesPath)
-    if not devices then
-        return {}
-    end
-    return devices
+    return pairedDevices
 end
 
 function net.savePairedClients(clients)

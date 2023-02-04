@@ -1,6 +1,4 @@
 local termUtils = require("/lib/termUtils")
-local gps = require("/lib/gps")
-local net = require("/lib/net")
 local netstone = require("/lib/netstone")
 netstone.getSettings()
 

@@ -1,13 +1,9 @@
-local net = require("/lib/net")
-local settings = require("/lib/settings").settings
-
-
 function listen_pair()
     while true do
         local cId, msg = rednet.receive("NodeOS_pair")
         if cId then
             local pin = msg.data
-            if pin == settings.pin then
+            if pin == sets.settings.pin then
                 local pairedClients = net.getPairedClients()
                 pairedClients[cId] = true
                 net.savePairedClients(pairedClients)

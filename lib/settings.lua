@@ -1,6 +1,6 @@
 local util = require("/lib/util")
 local file = util.loadModule("file")
-settingsPath = "etc/settings.cfg"
+local settingsPath = "etc/settings.cfg"
 
 --Load system settings
 local settings = {
@@ -25,8 +25,8 @@ function settings.getSettings()
     return settings.settings
 end
 
-function settings.saveSettings(settings)
-    file.writeTable(settingsPath, settings)
+function settings.saveSettings()
+    file.writeTable(settingsPath, settings.settings)
 end
 
 settings.getSettings()

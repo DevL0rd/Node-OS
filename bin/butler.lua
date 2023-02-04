@@ -1,5 +1,3 @@
-local net = require("/lib/net")
-local gps = require("/lib/gps")
 local termUtils = require("/lib/termUtils")
 
 function printHelp()

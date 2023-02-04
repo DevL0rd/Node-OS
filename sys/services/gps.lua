@@ -1,8 +1,3 @@
-local gps = require("/lib/gps")
-local net = require("/lib/net")
-local util = require("/lib/util")
-local file = util.loadModule("file")
-local settings = require("/lib/settings").settings
 local worldDepthLimit = -59
 function listen_giveLocalComputerDetails()
     while true do
@@ -10,7 +5,6 @@ function listen_giveLocalComputerDetails()
         if msg then
             local localComputers = gps.getLocalComputers()
             localComputers[cid] = msg.data
-            gps.saveLocalComputers(localComputers)
         end
     end
 end
@@ -26,7 +20,7 @@ function giveLocalComputerDetails_thread()
                 name = os.getComputerLabel(),
                 id = os.getComputerID(),
                 isTurtle = turtle ~= nil,
-                groups = settings.groups,
+                groups = sets.settings.groups,
                 time = os.time()
             })
         end
@@ -56,7 +50,7 @@ function Set(list)
     return set
 end
 
-if os.getComputerID() == settings.master then
+if os.getComputerID() == sets.settings.master then
     local interestingTilesBlacklist_path = "etc/map/interestingTilesBlacklist.cfg"
     local interestingTilesBlacklist = {
         "minecraft:bedrock",

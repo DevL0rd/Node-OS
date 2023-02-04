@@ -4,12 +4,9 @@ local w, h = term.getSize()
 local recent = {}
 local pinned = {}
 
-local util = require("/lib/util")
 local textbox = require("/lib/textbox")
 local scroll = require("/lib/scrollwindow")
 local draw = require("/lib/draw")
-
-local file = util.loadModule("file")
 local theme = _G.pm.getTheme()
 
 local search = textbox.new(3, h - 1, w - 7, nil, "Search", nil, theme.userInput.background, theme.userInput.text)

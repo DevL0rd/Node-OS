@@ -1,4 +1,4 @@
-local gps = require("/lib/gps")
+-- local gps = require("/lib/gps")
 local turtleUtils = {}
 local directions = {
     north = 0,

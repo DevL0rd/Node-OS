@@ -1,10 +1,5 @@
 local termUtils = require("/lib/termUtils")
 local turtleUtils = require("/lib/turtleUtils")
-local net = require("/lib/net")
-local gps = require("/lib/gps")
-local util = require("/lib/util")
-local file = util.loadModule("file")
-
 local butler_settings_path = "etc/butler/settings.cfg"
 local butler_settings = {
     home = nil,

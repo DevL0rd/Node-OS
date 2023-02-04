@@ -1,8 +1,5 @@
-local settings = require("/lib/settings").settings
 local textbox = require("/lib/textbox")
-local util = require('/lib/util')
 local sha256 = require("/lib/sha256")
-local file = util.loadModule("file")
 
 local w, h = term.getSize()
 local theme = _G.pm.getTheme()
@@ -64,7 +61,7 @@ draw()
 while true do
     draw()
     local e = { os.pullEvent() }
-    if settings.password == "" or settings.consoleOnly then
+    if sets.settings.password == "" or sets.settings.consoleOnly then
         os.queueEvent("pm_login")
         pm.endProcess(id)
     end
@@ -73,7 +70,7 @@ while true do
         if x >= 2 and x <= w - 2 and y == 3 then
             pswrdRaw = password.select()
         elseif x >= 2 and x <= 7 and y == 6 then
-            if sha256(pswrdRaw) == settings.password then
+            if sha256(pswrdRaw) == sets.settings.password then
                 os.queueEvent("pm_login")
                 pm.endProcess(id)
             else
@@ -82,7 +79,7 @@ while true do
         end
     elseif e[1] == "key" then
         if e[2] == keys.enter then
-            if sha256(pswrdRaw) == settings.password then
+            if sha256(pswrdRaw) == sets.settings.password then
                 os.queueEvent("pm_login")
                 pm.endProcess(id)
             else

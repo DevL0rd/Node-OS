@@ -1,6 +1,3 @@
-local net = require("/lib/net")
-local gps = require("/lib/gps")
-local settings = require("/lib/settings")
 local termUtils = require("/lib/termUtils")
 local args = { ... }
 
@@ -120,12 +117,12 @@ elseif args[1] == "addgroup" then
         termUtils.print("You must specify a group.", "red")
         return
     end
-    if not settings.settings.groups then
-        settings.settings.groups = {}
+    if not sets.settings.groups then
+        sets.settings.groups = {}
     end
-    if not settings.settings.groups[group] then
-        table.insert(settings.settings.groups, group)
-        settings.saveSettings(settings.settings)
+    if not sets.settings.groups[group] then
+        table.insert(sets.settings.groups, group)
+        settings.saveSettings()
         termUtils.print("Group '" .. group .. "' added! A reboot is required for network to get changes.", "yellow")
     else
         termUtils.print("Group '" .. group .. "' already exists.", "yellow")
@@ -136,15 +133,15 @@ elseif args[1] == "delgroup" then
         termUtils.print("You must specify a group.", "red")
         return
     end
-    if settings.settings.groups[group] then
-        settings.settings.groups[group] = nil
-        settings.saveSettings(settings.settings)
+    if sets.settings.groups[group] then
+        sets.settings.groups[group] = nil
+        settings.saveSettings()
         termUtils.print("Group '" .. group .. "' deleted. A reboot is required for network to get changes.", "yellow")
     else
         termUtils.print("Group '" .. group .. "' does not exist.", "red")
     end
 elseif args[1] == "listgroups" then
-    for i, group in ipairs(settings.settings.groups) do
+    for i, group in ipairs(sets.settings.groups) do
         termUtils.print(group)
     end
 else

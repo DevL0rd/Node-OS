@@ -1,8 +1,6 @@
 local selectedID = 0
 local procList
 
-local util = require("/lib/util")
-local file = util.loadModule("file")
 local theme = _G.pm.getTheme()
 local pm = _G.pm
 

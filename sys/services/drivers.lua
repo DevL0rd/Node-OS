@@ -1,6 +1,4 @@
-local util = require("/lib/util")
-local file = util.loadModule("file")
-local wm = _G.wm
+local pm = _G.pm
 local peripherals = {}
 local devicesConnected = {}
 local driverData = {}

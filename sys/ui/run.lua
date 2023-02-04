@@ -1,8 +1,6 @@
 local textbox = require("/lib/textbox")
 local w, h = term.getSize()
 local box = textbox.new(2, 4, w - 2)
-local util = require("util")
-local file = util.loadModule("file")
 local theme = _G.pm.getTheme()
 
 local function draw()

@@ -1,21 +1,18 @@
 local termUtils = require("/lib/termUtils")
-local gps = require("/lib/gps")
 require("/lib/misc")
-local util = require("/lib/util")
-local file = util.loadModule("file")
-locations = {}
-navigatingToBlock = false
-navto = nil
-navtoid = nil
-navname = ""
-worldTiles = {}
-markedTiles = {}
-computerTiles = {}
-oldComputerDetails = {}
-tileGraphics = {}
-tileGraphicsPath = "etc/map/tileGraphics.cfg"
-worldRenderDepth = 100
-inputingColor = false
+local locations = {}
+local navigatingToBlock = false
+local navto = nil
+local navtoid = nil
+local navname = ""
+local worldTiles = {}
+local markedTiles = {}
+local computerTiles = {}
+local oldComputerDetails = {}
+local tileGraphics = {}
+local tileGraphicsPath = "etc/map/tileGraphics.cfg"
+local worldRenderDepth = 100
+local inputingColor = false
 
 if not fs.exists("etc/map") then
     fs.makeDir("etc/map")
@@ -234,6 +231,7 @@ function renderMap(x, y)
     termUtils.write(" ", 1, midY + 1, "white", "black")
     termUtils.fillLine(" ", renderHeight, "white", "gray")
     termUtils.write("Press 'E' to close map.", 1, renderHeight, "white", "gray")
+    termUtils.triggerPaint()
 end
 
 oldComputerDetails = deepcopy(localComputers)

@@ -1,45 +1,36 @@
-local util = require("/lib/util")
-local file = util.loadModule("file")
-local net = require("/lib/net")
-local settings = require("/lib/settings").settings
 require("/lib/misc")
 local _locate = gps.locate
-local gps = {}
+local gps = gps
 gps.worldTiles = {}
 gps.interestingTiles = {}
 local gps_settings_path = "etc/gps/settings.cfg"
 local localComputers_path = "etc/gps/localComputers.dat"
-gps.settings = {
-    offset = {
-        x = 0,
-        y = 0,
-        z = 0
+gps.settings = file.readTable(gps_settings_path)
+if not gps.settings then
+    gps.settings = {
+        offset = {
+            x = 0,
+            y = 0,
+            z = 0
+        }
     }
-}
+    gps.saveSettings(gps.settings)
+end
+
 function gps.getSettings()
-    local ns = file.readTable(gps_settings_path)
-    if not ns then
-        gps.saveSettings(gps.settings)
-        return gps.settings
-    end
-    gps.settings = ns
-    return ns
+    return gps.settings
 end
 
 function gps.saveSettings(ns)
     file.writeTable(gps_settings_path, ns)
 end
 
-gps.getSettings()
-
-gps.localComputers = {}
+gps.localComputers = file.readTable(localComputers_path)
+if not gps.localComputers then
+    gps.localComputers = {}
+    gps.saveLocalComputers(gps.localComputers)
+end
 function gps.getLocalComputers()
-    local computers = file.readTable(localComputers_path)
-    if not computers then
-        gps.saveLocalComputers(gps.localComputers)
-        return gps.localComputers
-    end
-    gps.localComputers = computers
     return gps.localComputers
 end
 
@@ -426,7 +417,7 @@ function gps.getWorldTiles(radius, height)
     local gpsPos = gps.getPosition()
     if gpsPos then
         local blocks = net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = gpsPos },
-            settings.master)
+        sets.settings.master)
         if blocks then
             gps.setWorldTiles(gpsPos, radius, height, blocks)
         end
@@ -441,7 +432,7 @@ function gps.getInterestingTiles(radius, height, name, gpsPos)
     if gpsPos then
         local res = net.emit("NodeOS_getInterestingTiles",
             { radius = radius, height = height, pos = gpsPos, name = name },
-            settings.master)
+            sets.settings.master)
         if res and res.name then
             gps.setInterestingTiles(gpsPos, radius, height, res.name, res.tiles)
             return {
@@ -455,7 +446,7 @@ end
 
 function gps.getAllInterestingTiles(name)
     local res = net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
-        settings.master)
+    sets.settings.master)
     if res and res.name then
         if not gps.interestingTiles[res.name] then
             gps.interestingTiles[res.name] = {}
@@ -467,7 +458,7 @@ function gps.getAllInterestingTiles(name)
 end
 
 function gps.getInterestingTilesBlacklist()
-    local res = net.emit("NodeOS_getInterestingTilesBlacklist", {}, settings.master)
+    local res = net.emit("NodeOS_getInterestingTilesBlacklist", {}, sets.settings.master)
     if res then
         gps.interestingTilesBlacklist = res
         return gps.interestingTilesBlacklist
@@ -501,7 +492,7 @@ function gps.removeInterestingTile(name, pos)
     net.emit("NodeOS_removeInterestingTile", {
         name = name,
         pos = pos
-    }, settings.master, true)
+    }, sets.settings.master, true)
 end
 
 function gps.getTilesByDistance(name)

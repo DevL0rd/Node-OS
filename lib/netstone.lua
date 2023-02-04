@@ -1,6 +1,4 @@
 local netstone_settings_path = "etc/netstone.cfg"
-local util = require("/lib/util")
-local file = util.loadModule("file")
 local netstone = {}
 netstone.settings = {
     actuationRange = 10,

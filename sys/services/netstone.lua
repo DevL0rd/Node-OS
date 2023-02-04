@@ -1,6 +1,4 @@
 local netstone = require("/lib/netstone")
-local net = require("/lib/net")
-local gps = require("/lib/gps")
 require("/lib/misc")
 local function scanInRange_thread()
     while true do

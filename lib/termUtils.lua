@@ -11,7 +11,7 @@ function termUtils.print(text, fgColor, bgColor)
     print(text)
     term.setTextColor(colors["white"])
     term.setBackgroundColor(colors["black"])
-
+    termUtils.triggerPaint()
 end
 
 function termUtils.write(text, x, y, fgColor, bgColor, align)
@@ -108,6 +108,10 @@ function termUtils.fillLineWithBorder(bchar, line, fgColor, bgColor)
     termUtils.fillLine(" ", line, fgColor, bgColor)
     termUtils.write(bchar, 1, line, fgColor, bgColor)
     termUtils.write(bchar, 1, line, fgColor, bgColor, "right")
+end
+
+function termUtils.triggerPaint()
+    os.queueEvent("pm_paint")
 end
 
 return termUtils
