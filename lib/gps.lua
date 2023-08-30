@@ -6,6 +6,20 @@ gps.interestingTiles = {}
 local gps_settings_path = "etc/gps/settings.cfg"
 local localComputers_path = "etc/gps/localComputers.dat"
 gps.settings = file.readTable(gps_settings_path)
+
+function gps.saveSettings(ns)
+    file.writeTable(gps_settings_path, ns)
+end
+function gps.getSettings()
+    return gps.settings
+end
+function gps.getLocalComputers()
+    return gps.localComputers
+end
+
+function gps.saveLocalComputers(computers)
+    file.writeTable(localComputers_path, computers)
+end
 if not gps.settings then
     gps.settings = {
         offset = {
@@ -17,25 +31,11 @@ if not gps.settings then
     gps.saveSettings(gps.settings)
 end
 
-function gps.getSettings()
-    return gps.settings
-end
-
-function gps.saveSettings(ns)
-    file.writeTable(gps_settings_path, ns)
-end
 
 gps.localComputers = file.readTable(localComputers_path)
 if not gps.localComputers then
     gps.localComputers = {}
     gps.saveLocalComputers(gps.localComputers)
-end
-function gps.getLocalComputers()
-    return gps.localComputers
-end
-
-function gps.saveLocalComputers(computers)
-    file.writeTable(localComputers_path, computers)
 end
 
 function Set(list)
