@@ -89,13 +89,14 @@ function net.pair(cId, pin)
     end
 end
 
-function net.ping(cId, pin)
-    local res = net.emit("NodeOS_ping", pin, cId)
-    if res and res.success then
+function net.ping(cId)
+    local res = net.emit("NodeOS_ping", nil, cId)
+    if res then
+        net.isConnected = true
         return true
     else
         return false
     end
 end
-
+net.isConnected = false
 return net

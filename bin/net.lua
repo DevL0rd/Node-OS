@@ -27,7 +27,7 @@ if args[1] == "pair" then
     local cIds = gps.resolveComputersByString(args[2])
 
     if not cIds then
-        termUtils.print("No computer found!", "red")
+        termUtils.print("Computer not found!", "red")
         return
     end
     for i, cId in ipairs(cIds) do

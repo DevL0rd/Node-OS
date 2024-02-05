@@ -115,7 +115,9 @@ if os.getComputerID() == sets.settings.master then
             data.pos.x = math.floor(data.pos.x)
             data.pos.y = math.floor(data.pos.y)
             data.pos.z = math.floor(data.pos.z)
-
+            print("data.pos.x: " .. data.pos.x)
+            print("data.pos.y: " .. data.pos.y)
+            print("data.pos.z: " .. data.pos.z)
             local mx = data.pos.x - data.radius
             local my = data.pos.y - data.height
             local mz = data.pos.z - data.radius

@@ -16,19 +16,18 @@ if os.getComputerID() == sets.settings.master then
     function listen_publishUpdate()
         while true do
             local senderID, msg = rednet.receive("NodeOS_publishUpdate")
-            if not net.getPairedClients()[senderID] then
-                return
+            if net.getPairedClients()[senderID] then
+                net.respond(senderID, msg.token, {
+                    success = true
+                })
+                local path = "etc/updater/NodeOS-" .. msg.data.ver .. ".czip"
+                local file = fs.open(path, "w")
+                file.write(msg.data.data)
+                file.close()
+                czip.decompress("", path)
+                print("NodeOS updated to version " .. msg.data.ver .. "!")
+                os.reboot()
             end
-            net.respond(senderID, msg.token, {
-                success = true
-            })
-            local path = "etc/updater/NodeOS-" .. msg.data.ver .. ".czip"
-            local file = fs.open(path, "w")
-            file.write(msg.data.data)
-            file.close()
-            czip.decompress("", path)
-            print("NodeOS updated to version " .. msg.data.ver .. "!")
-            os.reboot()
         end
     end
 

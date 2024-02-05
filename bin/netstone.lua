@@ -28,7 +28,7 @@ end
 local cIds = gps.resolveComputersByString(args[1], true)
 
 if not cIds then
-    termUtils.print("No computer found!", "red")
+    termUtils.print("Computer not found!", "red")
     return
 end
 

@@ -32,6 +32,7 @@ function pm.selectProcess(pid)
         pm.selectedProcess.window.setVisible(true)
         pm.drawProcess(pm.selectedProcess)
       end
+      os.queueEvent("titlebar_paint")
     end
   end
 end
@@ -66,6 +67,7 @@ end
       proc.window.setVisible(false)
       pm.processes[pid] = nil
       pm.drawProcesses()
+      os.queueEvent("titlebar_paint")
     end
   end
 
@@ -200,6 +202,7 @@ end
       pm.selectedProcess = newProc
     end
     table.insert(pm.processes, pm.lastProcID, newProc)
+    os.queueEvent("titlebar_paint")
     return pm.lastProcID
   end
 

@@ -1,3 +1,4 @@
+local isConnected = false
 function listen_pair()
     while true do
         local cId, msg = rednet.receive("NodeOS_pair")
@@ -49,3 +50,18 @@ function listen_ping()
 end
 
 pm.createProcess(listen_ping, {isService=true, title="listen_ping"})
+
+
+function net_status_mon()
+    if os.getComputerID() == sets.settings.master then
+        net.isConnected = true
+        return
+    end
+      while true do
+        net.ping(sets.settings.master)
+        os.queueEvent("titlebar_paint")
+        sleep(2)
+      end
+end
+
+pm.createProcess(net_status_mon, {isService=true, title="net_status_mon"})

@@ -11,14 +11,13 @@ local ok, err = pcall(function()
   local theme = _G.pm.getTheme()
   local pm = _G.pm
 
-  local gpsPos = nil
-  local isConnected = false
   local function drawStatusArea()
     local time = " " .. textutils.formatTime(os.time(), false)
     term.setTextColor(theme.titlebar.text)
     local renderX = w - string.len(time) + 1
     term.setCursorPos(renderX, 1)
     term.write(time)
+    local gpsPos = gps.getPosition()
     if gpsPos then
       term.setTextColor(colors["green"])
     else
@@ -27,7 +26,7 @@ local ok, err = pcall(function()
     renderX = renderX - 3
     term.setCursorPos(renderX, 1)
     term.write("GPS")
-    if isConnected then
+    if net.isConnected then
       term.setTextColor(colors["green"])
     else
       term.setTextColor(colors["red"])
@@ -75,85 +74,54 @@ local ok, err = pcall(function()
     end
   end
 
-  local function event()
-    while true do
-      local e = { os.pullEvent() }
-      draw()
-      if e[1] == "mouse_click" then
-        local m, x, y = e[2], e[3], e[4]
-        if x >= 1 and x <= 3 and y == 1 then
-          if menuPID and pm.listProcesses()[menuPID] == nil then
+
+  os.queueEvent("titlebar_paint")
+  while true do
+    local e = { os.pullEvent() }
+    if e[1] == "mouse_click" then
+      local m, x, y = e[2], e[3], e[4]
+      if x >= 1 and x <= 3 and y == 1 then
+        if menuPID and pm.listProcesses()[menuPID] == nil then
+          menuPID = nil
+        else
+          if menuPID ~= nil then
+            pm.endProcess(menuPID)
             menuPID = nil
           else
-            if menuPID ~= nil then
-              pm.endProcess(menuPID)
-              menuPID = nil
-            else
-              menuPID = pm.createProcess("/sys/ui/menu.lua", {
-                x = 1,
-                y = 2,
-                width = 20,
-                height = 14,
-                showTitlebar = false,
-                dontShowInTitlebar = true
-              })
+            menuPID = pm.createProcess("/sys/ui/menu.lua", {
+              x = 1,
+              y = 2,
+              width = 20,
+              height = 14,
+              showTitlebar = false,
+              dontShowInTitlebar = true
+            })
 
-              pm.selectProcess(menuPID)
-            end
-          end
-        else
-          local pid
-          pid = nil -- just in case...
-          for i, v in pairs(running) do
-            if x >= v.startX and x <= v.endX then
-              pid = v.pid
-            end
-          end
-
-          if pid then
-            if procList[pid].minimized then
-              pm.unminimizeProcess(pid)
-            end
-            pm.selectProcess(pid)
+            pm.selectProcess(menuPID)
           end
         end
-      elseif e[1] == "pm_themeupdate" then
-        theme = file.readTable("/etc/colors.cfg")
-      end
-    end
-  end
-
-  local function statusThread()
-    while true do
-      drawStatusArea()
-      sleep(1)
-    end
-  end
-
-  local function gps_thread()
-    while true do
-      gpsPos = gps.getPosition()
-      sleep(1)
-    end
-  end
-
-  local function net_thread()
-    if os.getComputerID() == sets.master then
-      isConnected = true
-      return
-    end
-    while true do
-      local resp = net.emit("NodeOS_ping", nil, sets.master)
-      if resp then
-        isConnected = true
       else
-        isConnected = false
+        local pid
+        pid = nil -- just in case...
+        for i, v in pairs(running) do
+          if x >= v.startX and x <= v.endX then
+            pid = v.pid
+          end
+        end
+
+        if pid then
+          if procList[pid].minimized then
+            pm.unminimizeProcess(pid)
+          end
+          pm.selectProcess(pid)
+        end
       end
-      sleep(1)
+    elseif e[1] == "pm_themeupdate" then
+      theme = file.readTable("/etc/colors.cfg")
+    elseif e[1] == "titlebar_paint" then
+      draw()
     end
   end
-
-  parallel.waitForAll(statusThread, gps_thread, event, net_thread)
 
 end)
 
