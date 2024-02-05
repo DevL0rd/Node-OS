@@ -26,6 +26,8 @@ gps = require("/lib/gps")
 _G.gps = gps
 pm = require("/sys/processmanager")
 _G.pm = pm
+notify = require("/lib/notify")
+_G.notify = notify
 function os_thread()
   local native = term.current()
   local w, h = term.getSize()

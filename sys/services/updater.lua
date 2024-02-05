@@ -82,6 +82,7 @@ else
                 ver = tonumber(file.readAll())
                 file.close()
                 if res.data ~= ver then
+                    notify.push("Installing Update", "NodeOS is updating to version " .. res.data .. ".")
                     print("Update available! NodeOS version is " .. res.data .. ".")
                     print("Downloading update...")
                     res = net.emit("NodeOS_getUpdate", nil, sets.settings.master)

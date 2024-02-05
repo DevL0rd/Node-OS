@@ -172,6 +172,7 @@ else
             local senderID, msg = rednet.receive("NodeOS_receiveTransferNotice")
             -- termUtils.print("You received " .. msg.amount .. " from " .. msg.id, "green")
             -- do something later.
+            notify.push("Received Money!", "You received " .. msg.amount .. " from " .. msg.id, "green")
         end
     end
     pm.createProcess(listen_receiveTransferNotice, {isService=true, title="listen_receiveTransferNotice"})

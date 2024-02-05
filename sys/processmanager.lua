@@ -42,8 +42,13 @@ function pm.selectProcessAfter(pid, time)
   pm.selectProcess(pid)
 end
 
+function pm.minimizeProcess(pid)
+  pm.processes[pid].minimized = true
+end
+
 function pm.unminimizeProcess(pid)
   pm.processes[pid].minimized = false
+  pm.selectProcess(pid)
 end
 
 function pm.listProcesses()
@@ -186,10 +191,8 @@ end
         local pm = pm
         local id = pm.lastProcID
         local table = newTable
-        local textbox = textbox
-
-        path(textbox)
-        pm.endProcess(_G.id)
+        path()
+        pm.endProcess(id)
       end
     end
 
@@ -511,6 +514,18 @@ function pm.eventLoop()
           dontShowInTitlebar = true
         })
         pm.selectProcess(pm.titlebarID)
+        
+        pm.notifyID = pm.createProcess("/sys/ui/notifications_push.lua", {
+          x = termWidth - 18,
+          y = 3,
+          width = 19,
+          height = 5,
+          showTitlebar = false,
+          dontShowInTitlebar = true,
+          disableControls = true
+        })
+        pm.selectProcess(pm.notifyID)
+
         files = fs.list("/home/startup")
         for i, v in pairs(files) do
           v = "/home/startup/" .. v
@@ -523,6 +538,7 @@ function pm.eventLoop()
             })
           end
         end
+        notify.push("Welcome", "Welcome back!")
       elseif e[1] == "pm_paint" then
         pm.drawProcess(pm.selectedProcess) --just repaint the main focused window, is ok if other windows update over each other for performance.
       else
