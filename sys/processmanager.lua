@@ -523,15 +523,6 @@ function pm.eventLoop()
             })
           end
         end
-      elseif e[1] == "pm_titlebardeath" then
-        pm.titlebarID = pm.createProcess("/sys/ui/titlebar.lua", {
-          x = 1,
-          y = 1,
-          width = termWidth,
-          height = 1,
-          showTitlebar = false,
-          dontShowInTitlebar = true
-        })
       elseif e[1] == "pm_paint" then
         pm.drawProcess(pm.selectedProcess) --just repaint the main focused window, is ok if other windows update over each other for performance.
       else
@@ -542,7 +533,7 @@ function pm.eventLoop()
           term.redirect(v.window)
           coroutine.resume(v.coroutine, table.unpack(e))
         end
-        if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" ~= "titlebar_paint" then
+        if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" then
           --  and e[1] ~= "timer"
           -- print(e[1])
           pm.drawProcesses()

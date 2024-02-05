@@ -11,7 +11,10 @@ local ok, err = pcall(function()
   local theme = _G.pm.getTheme()
   local pm = _G.pm
 
-  local function drawStatusArea()
+  local function draw()
+    procList = pm.listProcesses()
+    term.setBackgroundColor(theme.titlebar.background)
+    term.clear()
     local time = " " .. textutils.formatTime(os.time(), false)
     term.setTextColor(theme.titlebar.text)
     local renderX = w - string.len(time) + 1
@@ -34,14 +37,6 @@ local ok, err = pcall(function()
     term.setCursorPos(renderX, 1)
     term.write("NET")
     term.setTextColor(theme.menu.textSecondary)
-
-  end
-
-  local function draw()
-    procList = pm.listProcesses()
-    term.setBackgroundColor(theme.titlebar.background)
-    term.clear()
-    drawStatusArea()
     term.setCursorPos(1, 1)
     if menuPID and procList[menuPID] then
       term.setBackgroundColor(theme.menu.buttonBG_Selected)
@@ -117,10 +112,8 @@ local ok, err = pcall(function()
       end
     elseif e[1] == "pm_themeupdate" then
       theme = file.readTable("/etc/colors.cfg")
-    elseif e[1] == "titlebar_paint" or "clock_tick" then
+    elseif e[1] == "titlebar_paint" or e[1] == "clock_tick" then
       draw()
     end
   end
 end)
-
-if not ok then os.queueEvent("pm_titlebardeath") end

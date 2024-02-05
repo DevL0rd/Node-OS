@@ -59,7 +59,6 @@ function net_status_mon()
     end
       while true do
         net.ping(sets.settings.master)
-        os.queueEvent("titlebar_paint")
         sleep(2)
       end
 end
