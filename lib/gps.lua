@@ -6,7 +6,7 @@ gps.interestingTiles = {}
 local gps_settings_path = "etc/gps/settings.cfg"
 local localComputers_path = "etc/gps/localComputers.dat"
 gps.settings = file.readTable(gps_settings_path)
-
+gps.isConnected = false
 function gps.saveSettings(ns)
     file.writeTable(gps_settings_path, ns)
 end
@@ -166,11 +166,13 @@ function gps.getPosition(roundNumber)
             py = py + gps.settings.offset.y
             pz = pz + gps.settings.offset.z
             oldPos = { x = px, y = py, z = pz }
+            gps.isConnected = true
         else
             failedgpscount = failedgpscount + 1
             if failedgpscount > 5 then
                 failedgpscount = 0
                 oldPos = nil
+                gps.isConnected = false
             end
         end
     end

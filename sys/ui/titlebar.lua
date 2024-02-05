@@ -17,8 +17,7 @@ local ok, err = pcall(function()
     local renderX = w - string.len(time) + 1
     term.setCursorPos(renderX, 1)
     term.write(time)
-    local gpsPos = gps.getPosition()
-    if gpsPos then
+    if gps.isConnected then
       term.setTextColor(colors["green"])
     else
       term.setTextColor(colors["red"])
@@ -118,11 +117,10 @@ local ok, err = pcall(function()
       end
     elseif e[1] == "pm_themeupdate" then
       theme = file.readTable("/etc/colors.cfg")
-    elseif e[1] == "titlebar_paint" then
+    elseif e[1] == "titlebar_paint" or "clock_tick" then
       draw()
     end
   end
-
 end)
 
 if not ok then os.queueEvent("pm_titlebardeath") end

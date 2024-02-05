@@ -542,7 +542,7 @@ function pm.eventLoop()
           term.redirect(v.window)
           coroutine.resume(v.coroutine, table.unpack(e))
         end
-        if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" then
+        if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" ~= "titlebar_paint" then
           --  and e[1] ~= "timer"
           -- print(e[1])
           pm.drawProcesses()
