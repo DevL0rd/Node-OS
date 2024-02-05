@@ -2,18 +2,18 @@
     window = {
         titlebar = {
             text = 1,
-            background = 256,
-            backgroundSelected = 128
+            background = 8,
+            backgroundSelected = 2048
         },
         close = 16384,
         maximize = 32,
         minimize = 16
     },
     desktop = {
-        background = 4096
+        background = 128
     },
     titlebar = {
-        background = 2048,
+        background = 32768,
         text = 1
     },
     menu = {
