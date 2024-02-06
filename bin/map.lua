@@ -10,7 +10,7 @@ local markedTiles = {}
 local computerTiles = {}
 local oldComputerDetails = {}
 local tileGraphics = {}
-local tileGraphicsPath = "etc/map/tileGraphics.cfg"
+local tileGraphicsPath = "/sys/map/tileGraphics.cfg"
 local worldRenderDepth = 100
 local inputingColor = false
 

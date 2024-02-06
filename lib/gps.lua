@@ -154,12 +154,8 @@ local failedgpscount = 0
 local oldPos = nil
 local lastPoll = 0
 function gps.getPosition(roundNumber)
-    timeDiff = os.time() - lastPoll
-    if timeDiff < 0 then
-        timeDiff = -timeDiff
-    end
-    if timeDiff >= 0.001 then
-        lastPoll = os.time() + 0.001
+    if os.time() ~= lastPoll then
+        lastPoll = os.time()
         local px, py, pz = _locate(5)
         if px and (not isNan(px)) then
             px = px + gps.settings.offset.x

@@ -422,3 +422,116 @@ end
 
 pm.createProcess(trimLocalComputers, {isService=true, title="service_trimLocalComputers"})
 
+function getPlayerPosition(username)
+    -- get player entity data which includes position
+    local ok, result = commands.exec("data get entity " .. username .. " Pos[0]")
+    local resString = result[1] -- Eg Player1 has the following entity data: 2
+    local data = string.match(resString, "data: (.*)")
+    local x = data
+    ok, result = commands.exec("data get entity " .. username .. " Pos[1]")
+    resString = result[1] -- Eg Player1 has the following entity data: 2
+    data = string.match(resString, "data: (.*)")
+    local y = data
+    ok, result = commands.exec("data get entity " .. username .. " Pos[2]")
+    resString = result[1] -- Eg Player1 has the following entity data: 2
+    data = string.match(resString, "data: (.*)")
+    local z = data
+    -- remove last character for each
+    x = string.sub(x, 1, -2)
+    y = string.sub(y, 1, -2)
+    z = string.sub(z, 1, -2)
+
+
+    -- -- parse
+    x = tonumber(x)
+    y = tonumber(y)
+    z = tonumber(z)
+
+    return { x = x, y = y, z = z }
+end
+
+function getPlayerHealth(username)
+    local ok, result = commands.exec("data get entity " .. username .. " Health")
+    local resString = result[1] -- Eg Player1 has the following entity data: 2
+    local data = string.match(resString, "data: (.*)")
+    local health = data
+    -- remove last character for each
+    health = string.sub(health, 1, -2)
+    -- parse
+    health = tonumber(health)
+    return health
+end
+
+function getPlayerFoodlevel(username)
+    local ok, result = commands.exec("data get entity " .. username .. " foodLevel")
+    local resString = result[1] -- Eg Player1 has the following entity data: 2
+    local data = string.match(resString, "data: (.*)")
+    -- hunger = string.sub(data, 1, -2) --remove last char
+    -- parse
+    hunger = tonumber(data)
+    return hunger
+end
+
+function getPlayerGamemode(username)
+    local ok, result = commands.exec("data get entity " .. username .. " playerGameType")
+    local resString = result[1] -- Eg Player1 has the following entity data: 2
+    local data = string.match(resString, "data: (.*)")
+    local gamemode = data
+    -- -- remove last character for each
+    -- gamemode = string.sub(gamemode, 1, -2)
+    -- -- parse
+    gamemode = tonumber(gamemode)
+    return gamemode
+end
+
+
+function getPlayerSelectedItem(username)
+    local ok, result = commands.exec("data get entity " .. username .. " SelectedItem.id")
+    local resString = result[1] -- Eg Player1 has the following entity data: {data}
+
+    local data = string.match(resString, "data: \"(.*)\"")
+    -- data_parsed = textutils.unserialize(data)
+    return data
+end
+
+local players_old = {}
+local last_player_fetch = 0
+
+function getPlayers()
+    if os.time() == last_player_fetch then -- prevent spamming the server on same tick
+        return players_old
+    end
+    last_player_fetch = os.time()
+    local ok, result = commands.exec("list")
+    -- result[1] EG: "There are 1 of a max of 20 players online: Player1, Player2, Player3"
+    if not ok then
+        return {}
+    end
+    local players = {}
+    -- match players after : seperated by ", "
+    for player in string.gmatch(result[1], ": (.*)") do
+        for p in string.gmatch(player, "([^,]+)") do
+            players[p] = {
+                pos = getPlayerPosition(p),
+                health = getPlayerHealth(p),
+                food = getPlayerFoodlevel(p),
+                gamemode = getPlayerGamemode(p),
+                selectedItem = getPlayerSelectedItem(p),
+                name = p
+            }
+        end
+    end
+    players_old = players
+    return players
+end
+
+function listen_getPlayers()
+    while true do
+        local cid, msg = rednet.receive("NodeOS_getPlayers")
+        local players = getPlayers()
+        net.respond(cid, msg.token, players)
+    end
+end
+
+pm.createProcess(listen_getPlayers, {isService=true, title="listen_getPlayers"})
+
