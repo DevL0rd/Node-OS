@@ -1,62 +1,37 @@
 -- local gps = require("/lib/gps")
 local turtleUtils = {}
-local directions = {
-    north = 0,
-    east = 1,
-    south = 2,
-    west = 3
-}
 turtleUtils.pos = {
     x = 0,
     y = 0,
-    z = 0
+    z = 0,
+    d = gps.directions.north
 }
-turtleUtils.direction = directions.north
-function getDirectionTraveled(posFirst, posSecond)
-    local dir = nil
-    if posSecond.x > posFirst.x then
-        dir = directions.east
-    elseif posSecond.x < posFirst.x then
-        dir = directions.west
-    elseif posSecond.z > posFirst.z then
-        dir = directions.south
-    elseif posSecond.z < posFirst.z then
-        dir = directions.north
-    end
-    return dir
-end
+turtleUtils.replaceBlocksBehindDisabledDepth = 50
 
 function turtleUtils.calibrate()
     -- gps.settings.offset.y = 1
-    calibrated = false
-    while not calibrated do
-        local gpsPos = gps.getPosition(true)
-        if gpsPos then
-            turtleUtils.pos = gpsPos
-        end
-        if gpsPos then
-            turtle.dig()
-            turtle.forward()
-            os.sleep(1)
-            local gposPos2 = gps.getPosition(true)
-            turtle.back()
-            if gposPos2 then
-                turtleUtils.direction = getDirectionTraveled(gpsPos, gposPos2)
-                calibrated = turtleUtils.direction ~= nil
-            end
-        end
-    end
+    --get the current position and direction, after this turtle can track it's self.
+    local tGps = gps.getPosition(true)
+    turtleUtils.pos.x = tGps.x
+    turtleUtils.pos.y = tGps.y
+    turtleUtils.pos.z = tGps.z
+    turtle.dig()
+    turtle.forward()
+    os.sleep(1)
+    tGps = gps.getPosition(true)
+    turtleUtils.pos.d = tGps.d
+    turtle.back()
 end
 
 function turtleUtils.getCoordsAhead(ammount)
     local x, y, z = turtleUtils.pos.x, turtleUtils.pos.y, turtleUtils.pos.z
-    if turtleUtils.direction == directions.north then
+    if turtleUtils.pos.d == gps.directions.north then
         z = z - ammount
-    elseif turtleUtils.direction == directions.east then
+    elseif turtleUtils.pos.d == gps.directions.east then
         x = x + ammount
-    elseif turtleUtils.direction == directions.south then
+    elseif turtleUtils.pos.d == gps.directions.south then
         z = z + ammount
-    elseif turtleUtils.direction == directions.west then
+    elseif turtleUtils.pos.d == gps.directions.west then
         x = x - ammount
     end
     return { x = x, y = y, z = z }
@@ -74,34 +49,109 @@ function turtleUtils.digDown()
     return turtle.digDown()
 end
 
-function turtleUtils.forward(breakBlocks)
-    if breakBlocks then
-        turtleUtils.dig()
+-- Initialize a list to track blocks
+turtleUtils.blockList = {}
+turtleUtils.targetBlockName = "notset"
+
+function turtleUtils.getItemSlot(itemName)
+    -- convert some names to the correct name ie can't hold grass so convert to dirt
+    -- use not exact match to allow for different types of the same item
+    if string.find(itemName, "grass") then
+        itemName = "dirt"
     end
-    if turtle.forward() then
-        turtleUtils.pos.x = turtleUtils.pos.x +
-            (turtleUtils.direction == directions.east and 1 or turtleUtils.direction == directions.west and -1 or 0)
-        turtleUtils.pos.z = turtleUtils.pos.z +
-            (turtleUtils.direction == directions.north and -1 or turtleUtils.direction == directions.south and 1 or 0)
-        return true
+    for i = 1, 16 do
+        local item = turtle.getItemDetail(i)
+        -- not exat match
+        if item and string.find(item.name, itemName) then
+            return i
+        end
     end
-    return false
+    return nil
 end
 
-function turtleUtils.back()
-    if turtle.back() then
+-- Places a block forward by its name
+function turtleUtils.placeBlock(blockName)
+    local slot = turtleUtils.getItemSlot(blockName)
+    if slot then
+        turtle.select(slot)
+        return turtle.place()
+    end
+    return false -- Block not found or placement failed
+end
+
+function turtleUtils.placeBlockDown(blockName)
+    local slot = turtleUtils.getItemSlot(blockName)
+    if slot then
+        turtle.select(slot)
+        return turtle.placeDown()
+    end
+    return false -- Block not found or placement failed
+end
+
+function turtleUtils.placeBlockUp(blockName)
+    local slot = turtleUtils.getItemSlot(blockName)
+    if slot then
+        turtle.select(slot)
+        return turtle.placeUp()
+    end
+    return false -- Block not found or placement failed
+end
+
+-- Move forward while managing block replacement
+function turtleUtils.forward(breakBlocks)
+    -- Step 1: Take out the oldest block in the list if length is 2
+    if breakBlocks then
+        if #turtleUtils.blockList == 2 then
+            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+            -- if air or target block string is not in the name
+            local shouldReplace = turtleUtils.pos.y > turtleUtils.replaceBlocksBehindDisabledDepth
+            if blockToPlace ~= "air" and shouldReplace then
+                -- Turn around and place the block
+                turtle.turnLeft()
+                turtle.turnLeft()
+                turtleUtils.placeBlock(blockToPlace)
+                turtle.turnLeft()
+                turtle.turnLeft()
+            end
+        end
+
+        -- Step 2: Inspect the block ahead and add it to the list
+        local success, block = turtle.inspect()
+        if success and not string.find(block.name, turtleUtils.targetBlockName) then
+            table.insert(turtleUtils.blockList, block.name) -- Add the block to the list                                    -- Break the block
+        else
+            table.insert(turtleUtils.blockList, "air")      -- No block, store `nil`
+        end
+        turtle.dig()
+    end
+    -- Step 3: Move forward
+    if turtle.forward() then
+        -- Update position
         turtleUtils.pos.x = turtleUtils.pos.x +
-            (turtleUtils.direction == directions.east and -1 or turtleUtils.direction == directions.west and 1 or 0)
+            (turtleUtils.pos.d == gps.directions.east and 1 or turtleUtils.pos.d == gps.directions.west and -1 or 0)
         turtleUtils.pos.z = turtleUtils.pos.z +
-            (turtleUtils.direction == directions.north and 1 or turtleUtils.direction == directions.south and -1 or 0)
+            (turtleUtils.pos.d == gps.directions.north and -1 or turtleUtils.pos.d == gps.directions.south and 1 or 0)
         return true
     end
-    return false
+
+    return false -- Move failed
 end
 
 function turtleUtils.down(breakBlocks)
     if breakBlocks then
-        turtleUtils.digDown()
+        if #turtleUtils.blockList == 2 then
+            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+            if blockToPlace ~= "air" then
+                turtleUtils.placeBlockUp(blockToPlace)
+            end
+        end
+        local success, block = turtle.inspectDown()
+        if success and not string.find(block.name, turtleUtils.targetBlockName) then
+            table.insert(turtleUtils.blockList, block.name)
+        else
+            table.insert(turtleUtils.blockList, "air")
+        end
+        turtle.digDown()
     end
     if turtle.down() then
         turtleUtils.pos.y = turtleUtils.pos.y - 1
@@ -112,7 +162,19 @@ end
 
 function turtleUtils.up(breakBlocks)
     if breakBlocks then
-        turtleUtils.digUp()
+        if #turtleUtils.blockList == 2 then
+            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+            if blockToPlace ~= "air" then
+                turtleUtils.placeBlockDown(blockToPlace)
+            end
+        end
+        local success, block = turtle.inspectUp()
+        if success and not string.find(block.name, turtleUtils.targetBlockName) then
+            table.insert(turtleUtils.blockList, block.name)
+        else
+            table.insert(turtleUtils.blockList, "air")
+        end
+        turtle.digUp()
     end
     if turtle.up() then
         turtleUtils.pos.y = turtleUtils.pos.y + 1
@@ -121,59 +183,77 @@ function turtleUtils.up(breakBlocks)
     return false
 end
 
+function turtleUtils.back()
+    if turtle.back() then
+        turtleUtils.pos.x = turtleUtils.pos.x +
+            (turtleUtils.pos.d == gps.directions.east and -1 or turtleUtils.pos.d == gps.directions.west and 1 or 0)
+        turtleUtils.pos.z = turtleUtils.pos.z +
+            (turtleUtils.pos.d == gps.directions.north and 1 or turtleUtils.pos.d == gps.directions.south and -1 or 0)
+        return true
+    end
+    if #turtleUtils.blockList > 0 then
+        local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+        local shouldReplace = turtleUtils.pos.y > turtleUtils.replaceBlocksBehindDisabledDepth
+        if blockToPlace ~= "air" and shouldReplace then
+            turtleUtils.placeBlock(blockToPlace)
+        end
+    end
+    return false
+end
+
 function turtleUtils.turnLeft()
     turtle.turnLeft()
-    turtleUtils.direction = turtleUtils.direction - 1
-    if turtleUtils.direction < 0 then
-        turtleUtils.direction = 3
+    turtleUtils.pos.d = turtleUtils.pos.d - 1
+    if turtleUtils.pos.d < 0 then
+        turtleUtils.pos.d = 3
     end
 end
 
 function turtleUtils.turnRight(ammount)
     turtle.turnRight()
-    turtleUtils.direction = turtleUtils.direction + 1
-    if turtleUtils.direction > 3 then
-        turtleUtils.direction = 0
+    turtleUtils.pos.d = turtleUtils.pos.d + 1
+    if turtleUtils.pos.d > 3 then
+        turtleUtils.pos.d = 0
     end
 end
 
 function turtleUtils.turn(direction)
-    if turtleUtils.direction == direction then
+    if turtleUtils.pos.d == direction then
         return
     end
-    if turtleUtils.direction == directions.north then
-        if direction == directions.east then
+    if turtleUtils.pos.d == gps.directions.north then
+        if direction == gps.directions.east then
             turtleUtils.turnRight()
-        elseif direction == directions.west then
+        elseif direction == gps.directions.west then
             turtleUtils.turnLeft()
-        elseif direction == directions.south then
+        elseif direction == gps.directions.south then
             turtleUtils.turnRight()
             turtleUtils.turnRight()
         end
-    elseif turtleUtils.direction == directions.east then
-        if direction == directions.north then
+    elseif turtleUtils.pos.d == gps.directions.east then
+        if direction == gps.directions.north then
             turtleUtils.turnLeft()
-        elseif direction == directions.south then
+        elseif direction == gps.directions.south then
             turtleUtils.turnRight()
-        elseif direction == directions.west then
+        elseif direction == gps.directions.west then
             turtleUtils.turnRight()
             turtleUtils.turnRight()
         end
-    elseif turtleUtils.direction == directions.south then
-        if direction == directions.east then
+    elseif turtleUtils.pos.d == gps.directions.south then
+        if direction == gps.directions.east then
             turtleUtils.turnLeft()
-        elseif direction == directions.west then
+        elseif direction == gps.directions.west then
             turtleUtils.turnRight()
-        elseif direction == directions.north then
+        elseif direction == gps.directions.north then
             turtleUtils.turnRight()
             turtleUtils.turnRight()
         end
-    elseif turtleUtils.direction == directions.west then
-        if direction == directions.north then
+    elseif turtleUtils.pos.d == gps.directions.west then
+        if direction == gps.directions.north then
             turtleUtils.turnRight()
-        elseif direction == directions.south then
+        elseif direction == gps.directions.south then
             turtleUtils.turnLeft()
-        elseif direction == directions.east then
+        elseif direction == gps.directions.east then
             turtleUtils.turnRight()
             turtleUtils.turnRight()
         end
@@ -186,50 +266,48 @@ function turtleUtils.isAboveOrBelowPos(pos)
 end
 
 function turtleUtils.goTo(pos, breakBlocks, targetDistance)
-    local fixingDirectionWE = false
+    turtleUtils.blockList = {}
+    pos = {
+        x = round(pos.x),
+        y = round(pos.y),
+        z = round(pos.z),
+        d = pos.d
+    }
     while true do
         -- local gpsPos = gps.getPosition(true)
         -- if gpsPos then
         --     turtleUtils.pos = gpsPos
         -- end
-        pos = {
-            x = round(pos.x),
-            y = round(pos.y),
-            z = round(pos.z)
-        }
         local dist = gps.getDistance(turtleUtils.pos, pos, true)
         if dist == targetDistance then
-            return
-        end
-
-        if fixingDirectionWE then
-            if pos.x > turtleUtils.pos.x then
-                turtleUtils.turn(directions.east)
-            elseif pos.x < turtleUtils.pos.x then
-                turtleUtils.turn(directions.west)
+            if pos.d ~= nil then
+                turtleUtils.turn(pos.d)
             end
-        else
-            if pos.z > turtleUtils.pos.z then
-                turtleUtils.turn(directions.south)
-            elseif pos.z < turtleUtils.pos.z then
-                turtleUtils.turn(directions.north)
-            end
+            return true
         end
-        fixingDirectionWE = not fixingDirectionWE
+        if pos.x > turtleUtils.pos.x then
+            turtleUtils.turn(gps.directions.east)
+        elseif pos.x < turtleUtils.pos.x then
+            turtleUtils.turn(gps.directions.west)
+        elseif pos.z > turtleUtils.pos.z then
+            turtleUtils.turn(gps.directions.south)
+        elseif pos.z < turtleUtils.pos.z then
+            turtleUtils.turn(gps.directions.north)
+        end
         if dist <= targetDistance then
             if targetDistance == 1 then
                 if pos.x > turtleUtils.pos.x then
-                    turtleUtils.turn(directions.east)
+                    turtleUtils.turn(gps.directions.east)
                     turtleUtils.forward()
                 elseif pos.x < turtleUtils.pos.x then
-                    turtleUtils.turn(directions.west)
+                    turtleUtils.turn(gps.directions.west)
                     turtleUtils.forward()
                 end
                 if pos.z > turtleUtils.pos.z then
-                    turtleUtils.turn(directions.south)
+                    turtleUtils.turn(gps.directions.south)
                     turtleUtils.forward()
                 elseif pos.z < turtleUtils.pos.z then
-                    turtleUtils.turn(directions.north)
+                    turtleUtils.turn(gps.directions.north)
                     turtleUtils.forward()
                 end
                 if pos.y < turtleUtils.pos.y then
@@ -238,14 +316,17 @@ function turtleUtils.goTo(pos, breakBlocks, targetDistance)
                     turtleUtils.up()
                 end
                 if pos.x > turtleUtils.pos.x then
-                    turtleUtils.turn(directions.east)
+                    turtleUtils.turn(gps.directions.east)
                 elseif pos.x < turtleUtils.pos.x then
-                    turtleUtils.turn(directions.west)
+                    turtleUtils.turn(gps.directions.west)
                 elseif pos.z > turtleUtils.pos.z then
-                    turtleUtils.turn(directions.south)
+                    turtleUtils.turn(gps.directions.south)
                 elseif pos.z < turtleUtils.pos.z then
-                    turtleUtils.turn(directions.north)
+                    turtleUtils.turn(gps.directions.north)
                 end
+            end
+            if pos.d ~= nil then
+                turtleUtils.turn(pos.d)
             end
             return true
         end

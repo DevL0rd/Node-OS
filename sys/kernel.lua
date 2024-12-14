@@ -6,6 +6,31 @@ local function loadtable(path)
   file.close()
   return content
 end
+function errorScreen(error)
+  term.redirect(term.native())
+  term.setBackgroundColor(colors.red)
+  term.clear()
+  term.setTextColor(colors.white)
+  term.setCursorPos(2, 2)
+  term.write("System Crash")
+  local w, h = term.getSize()
+  local errorContentWindow = window.create(term.native(), 2, 4, w - 2, h - 3)
+  errorContentWindow.setBackgroundColor(colors.red)
+  errorContentWindow.setTextColor(colors.white)
+  errorContentWindow.clear()
+  term.redirect(errorContentWindow)
+  print(error)
+  -- term.redirect(term.native())
+  -- term.setCursorPos(2, h - 1)
+  -- term.write("Dumping logs...")
+  -- dumpLogs()
+  for i = 30, 1, -1 do
+    term.setCursorPos(2, h - 1)
+    term.write(("The system will restart in %d second(s)"):format(i))
+    sleep(1)
+  end
+  os.reboot()
+end
 
 local packageDirs = loadtable("/etc/libs.cfg")
 for i, v in pairs(packageDirs) do
@@ -80,45 +105,15 @@ function os_thread()
       width = w,
       height = h,
     }))
-      -- os.run({0
-      --   _G = _G,
-      --   package = package
-      -- }, "/sys/shell.lua")
+    -- os.run({0
+    --   _G = _G,
+    --   package = package
+    -- }, "/sys/shell.lua")
   end
   pm.drawProcesses()
   pm.eventLoop()
 end
 
-function start()
-  local ok, err = xpcall(os_thread, function(err)
-    local function errorScreen(error)
-      term.redirect(term.native())
-      term.setBackgroundColor(colors.red)
-      term.clear()
-      term.setTextColor(colors.white)
-      term.setCursorPos(2, 2)
-      term.write("System Crash")
-      local w, h = term.getSize()
-      local errorContentWindow = window.create(term.native(), 2, 4, w - 2, h - 3)
-      errorContentWindow.setBackgroundColor(colors.red)
-      errorContentWindow.setTextColor(colors.white)
-      errorContentWindow.clear()
-      term.redirect(errorContentWindow)
-      print(error)
-      -- term.redirect(term.native())
-      -- term.setCursorPos(2, h - 1)
-      -- term.write("Dumping logs...")
-      -- dumpLogs()
-      for i = 30, 1, -1 do
-        term.setCursorPos(2, h - 1)
-        term.write(("The system will restart in %d second(s)"):format(i))
-        sleep(1)
-      end
-      os.reboot()
-    end
-
-    errorScreen(err)
-  end)
-end
+xpcall(os_thread, errorScreen)
 
 start()

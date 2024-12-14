@@ -14,6 +14,30 @@ function printHelp()
     termUtils.print("  status - Prints the status.")
 end
 
+function status_monitor(cId)
+    local lastStatus = ""
+    while true do
+        local res = net.emit("NodeOS_butlerStatus", nil, cId)
+        if res then
+            if res.success then
+                if res.status ~= lastStatus then
+                    if res.status == "Complete!" then
+                        termUtils.print(res.status, "green")
+                        return
+                    end
+                    termUtils.print(res.status)
+                    lastStatus = res.status
+                end
+            else
+                termUtils.print(res.message, "red")
+            end
+        else
+            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+        end
+        sleep(0.2)
+    end
+end
+
 local args = { ... }
 
 
@@ -23,7 +47,7 @@ if #args == 0 then
 end
 
 local cIds = gps.resolveComputersByString(args[1], true, true) -- must be paired and be a turtle
-
+local shouldMonitor = false
 if not cIds then
     termUtils.print("No paired turtle found!", "red")
     return
@@ -43,6 +67,7 @@ if args[2] == "find" then
             }, cId)
             if res then
                 if res.success then
+                    shouldMonitor = true
                     termUtils.print("Turtle sent!", "green")
                 else
                     termUtils.print(res.message, "red")
@@ -73,10 +98,11 @@ elseif args[2] == "return" then
         if args[3] then
             res = net.emit("NodeOS_return", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
         else
-            res = net.emit("NodeOS_return", { canBreakBlocks = false }, cId)
+            res = net.emit("NodeOS_return", { canBreakBlocks = true }, cId)
         end
         if res then
             if res.success then
+                shouldMonitor = true
                 termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
@@ -95,6 +121,7 @@ elseif args[2] == "follow" then
         end
         if res then
             if res.success then
+                shouldMonitor = true
                 termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
@@ -117,23 +144,14 @@ elseif args[2] == "toggleBreaking" then
         end
     end
 elseif args[2] == "status" then
-    local lastStatus = ""
-    while true do
-        local res = net.emit("NodeOS_butlerStatus", nil, cIds[1])
-        if res then
-            if res.success then
-                if res.status ~= lastStatus then
-                    termUtils.print(res.status)
-                    lastStatus = res.status
-                end
-            else
-                termUtils.print(res.message, "red")
-            end
-        else
-            termUtils.print("Failed to connect to " .. cIds[1] .. ".", "red")
-        end
-        sleep(0.2)
-    end
+    shouldMonitor = true
 else
     printHelp()
+end
+
+if shouldMonitor then
+    -- for i, cId in ipairs(cIds) do
+    --     parallel.waitForAny(status_monitor, function() end, cId)
+    -- end
+    status_monitor(cIds[1])
 end

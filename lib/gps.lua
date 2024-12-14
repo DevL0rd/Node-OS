@@ -10,9 +10,11 @@ gps.isConnected = false
 function gps.saveSettings(ns)
     file.writeTable(gps_settings_path, ns)
 end
+
 function gps.getSettings()
     return gps.settings
 end
+
 function gps.getLocalComputers()
     return gps.localComputers
 end
@@ -20,6 +22,13 @@ end
 function gps.saveLocalComputers(computers)
     file.writeTable(localComputers_path, computers)
 end
+
+gps.directions = {
+    north = 0,
+    east = 1,
+    south = 2,
+    west = 3
+}
 if not gps.settings then
     gps.settings = {
         offset = {
@@ -152,16 +161,52 @@ end
 
 local failedgpscount = 0
 local oldPos = nil
+local oldDir = gps.directions.north
 local lastPoll = 0
+
+function gps.getDirectionTraveled(posFirst, posSecond)
+    if posSecond.x > posFirst.x then
+        oldDir = gps.directions.east
+    elseif posSecond.x < posFirst.x then
+        oldDir = gps.directions.west
+    elseif posSecond.z > posFirst.z then
+        oldDir = gps.directions.south
+    elseif posSecond.z < posFirst.z then
+        oldDir = gps.directions.north
+    end
+    return oldDir
+end
+
+function gps.getDirectionString(dir)
+    if dir == gps.directions.north then
+        return "north"
+    elseif dir == gps.directions.east then
+        return "east"
+    elseif dir == gps.directions.south then
+        return "south"
+    elseif dir == gps.directions.west then
+        return "west"
+    end
+    return "unknown (" .. dir .. ")"
+end
+
 function gps.getPosition(roundNumber)
-    if os.time() ~= lastPoll then
-        lastPoll = os.time()
+    timeDiff = os.time() - lastPoll
+    if timeDiff < 0 then
+        timeDiff = -timeDiff
+    end
+    if timeDiff >= 0.001 then
+        lastPoll = os.time() + 0.001
         local px, py, pz = _locate(5)
         if px and (not isNan(px)) then
             px = px + gps.settings.offset.x
             py = py + gps.settings.offset.y
             pz = pz + gps.settings.offset.z
-            oldPos = { x = px, y = py, z = pz }
+            local d = gps.directions.north
+            if oldPos then
+                d = gps.getDirectionTraveled(oldPos, { x = px, y = py, z = pz })
+            end
+            oldPos = { x = px, y = py, z = pz, d = d }
             gps.isConnected = true
         else
             failedgpscount = failedgpscount + 1
@@ -176,7 +221,8 @@ function gps.getPosition(roundNumber)
         return {
             x = round(oldPos.x),
             y = round(oldPos.y),
-            z = round(oldPos.z)
+            z = round(oldPos.z),
+            d = oldPos.d
         }
     else
         return oldPos
@@ -394,7 +440,7 @@ function gps.findBlock(name)
                     if gps.interestingTiles[blockName][x3][y3] then
                         for z3 = z2, z2e do
                             if x3 > x2 and x3 < x2e and y3 > y2 and y3 < y2e then -- inside on the x slice
-                                if z3 > z2 then -- inside on the z slice
+                                if z3 > z2 then                                   -- inside on the z slice
                                     z3 = z2e
                                 end
                             end
@@ -415,7 +461,7 @@ function gps.getWorldTiles(radius, height)
     local gpsPos = gps.getPosition()
     if gpsPos then
         local blocks = net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = gpsPos },
-        sets.settings.master)
+            sets.settings.master)
         if blocks then
             gps.setWorldTiles(gpsPos, radius, height, blocks)
         end
@@ -444,7 +490,7 @@ end
 
 function gps.getAllInterestingTiles(name)
     local res = net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
-    sets.settings.master)
+        sets.settings.master)
     if res and res.name then
         if not gps.interestingTiles[res.name] then
             gps.interestingTiles[res.name] = {}

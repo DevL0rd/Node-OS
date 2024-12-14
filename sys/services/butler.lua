@@ -8,8 +8,9 @@ local butler_settings = {
     navname = "",
     pointsTraveled = 0,
     canBreakBlocks = false,
+    blockList = {}
 }
-local statusMessage = "Waiting for command..."
+local statusMessage = "Complete!" -- This will close the status screen
 local isSaving = false
 function saveButler()
     if not isSaving then
@@ -21,8 +22,12 @@ end
 
 if fs.exists(butler_settings_path) then
     butler_settings = file.readTable(butler_settings_path)
+    turtleUtils.blockList = butler_settings.blockList or {}
 else
     saveButler()
+end
+if butler_settings.home then
+    turtleUtils.replaceBlocksBehindDisabledDepth = butler_settings.home.y - 20
 end
 local lastTileUpdatePosition = nil
 local updatingTiles = false
@@ -89,19 +94,18 @@ function findBlocks_step()
             closestBlock.name ..
             ". Distance: " .. dist
         gps.removeInterestingTile(closestBlock.name, closestBlock)
+        turtleUtils.targetBlockName = closestBlock.name
         turtleUtils.goTo(closestBlock, butler_settings.canBreakBlocks, 0)
+        turtleUtils.targetBlockName = "notset"
         butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
-
     else
         statusMessage = "Can't find block, returning home."
         butler_settings.status = "returning"
         saveButler()
     end
-
 end
 
 function storeBlocks_step()
-
     -- if you have things in your inventory
     -- local inventory = turtleUtils.getInventoryByNames()
     -- if next(inventory) ~= nil then
@@ -177,11 +181,12 @@ function butlerThread()
     turtleUtils.calibrate()
     gps.getInterestingTilesBlacklist()
     while true do
-        if butler_settings.status == "home" then
+        if butler_settings.status == "storeblocks" then
             storeBlocks_step()
         elseif butler_settings.status == "returning" then
             turtleUtils.goTo(butler_settings.home, butler_settings.canBreakBlocks, 0)
-            butler_settings.status = "home"
+            butler_settings.status = "storeblocks"
+            resetState()
             saveButler()
         elseif butler_settings.status == "findingBlocks" then
             findBlocks_step()
@@ -194,8 +199,8 @@ function butlerThread()
 end
 
 if turtle then
-    pm.createProcess(tileUpdateThread, {isService=true, title="tileUpdateThread"})
-    pm.createProcess(butlerThread, {isService=true, title="service_butler"})
+    pm.createProcess(tileUpdateThread, { isService = true, title = "tileUpdateThread" })
+    pm.createProcess(butlerThread, { isService = true, title = "service_butler" })
 end
 function listen_find()
     while true do
@@ -245,7 +250,7 @@ function listen_find()
     end
 end
 
-pm.createProcess(listen_find, {isService=true, title="listen_find"})
+pm.createProcess(listen_find, { isService = true, title = "listen_find" })
 
 
 function listen_sethome()
@@ -257,6 +262,7 @@ function listen_sethome()
                 local gpsPos = gps.getPosition(true)
                 if gpsPos then
                     butler_settings.home = gpsPos
+                    turtleUtils.replaceBlocksBehindDisabledDepth = butler_settings.home.y - 20
                     resetState()
                     butler_settings.status = "home"
                     saveButler()
@@ -282,11 +288,10 @@ function listen_sethome()
                 message = "You are not paired with this computer!"
             })
         end
-
     end
 end
 
-pm.createProcess(listen_sethome, {isService=true, title="listen_sethome"})
+pm.createProcess(listen_sethome, { isService = true, title = "listen_sethome" })
 
 -- NodeOS_return
 function listen_return()
@@ -334,7 +339,7 @@ function listen_return()
     end
 end
 
-pm.createProcess(listen_return, {isService=true, title="listen_return"})
+pm.createProcess(listen_return, { isService = true, title = "listen_return" })
 
 function listen_follow()
     while true do
@@ -382,7 +387,7 @@ function listen_follow()
     end
 end
 
-pm.createProcess(listen_follow, {isService=true, title="listen_follow"})
+pm.createProcess(listen_follow, { isService = true, title = "listen_follow" })
 function listen_toggleBreaking()
     while true do
         local cid, msg = rednet.receive("NodeOS_toggleBreaking")
@@ -417,7 +422,7 @@ function listen_toggleBreaking()
     end
 end
 
-pm.createProcess(listen_toggleBreaking, {isService=true, title="listen_toggleBreaking"})
+pm.createProcess(listen_toggleBreaking, { isService = true, title = "listen_toggleBreaking" })
 
 -- NodeOS_butlerStatus
 function listen_status()
@@ -445,10 +450,10 @@ function listen_status()
     end
 end
 
-pm.createProcess(listen_status, {isService=true, title="listen_status"})
+pm.createProcess(listen_status, { isService = true, title = "listen_status" })
 
 function resetState()
-    statusMessage = "Waiting for command..."
+    statusMessage = "Complete!"
     butler_settings.status = "idle"
     butler_settings.navtoid = nil
     butler_settings.navname = nil

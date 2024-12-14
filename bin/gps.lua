@@ -43,7 +43,8 @@ if args[1] == "setoffset" then
 elseif args[1] == "position" or args[1] == "pos" then
     local gpsPos = gps.getPosition()
     if gpsPos then
-        termUtils.print(gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z)
+        local direction = gps.getDirectionString(gpsPos.d)
+        termUtils.print(gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z .. " " .. direction, "green")
     else
         termUtils.print("No GPS position available!", "red")
     end
