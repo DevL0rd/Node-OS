@@ -98,6 +98,5 @@ function net.ping(cId)
         return false
     end
 end
-
 net.isConnected = false
 return net

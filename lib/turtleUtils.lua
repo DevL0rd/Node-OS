@@ -8,6 +8,15 @@ turtleUtils.pos = {
 }
 turtleUtils.replaceBlocksBehindDisabledDepth = 50
 
+local function blockToBrokenBlock(block)
+    if block == "minecraft:stone" then
+        return "minecraft:cobblestone"
+    elseif block == "minecraft:grass" then
+        return "minecraft:dirt"
+    end
+    return block
+end
+
 function turtleUtils.calibrate()
     -- gps.settings.offset.y = 1
     --get the current position and direction, after this turtle can track it's self.
@@ -102,10 +111,10 @@ function turtleUtils.forward(breakBlocks)
     -- Step 1: Take out the oldest block in the list if length is 2
     if breakBlocks then
         if #turtleUtils.blockList == 2 then
-            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+            local blockToPlace = blockToBrokenBlock(table.remove(turtleUtils.blockList, 1)) -- Oldest block
             -- if air or target block string is not in the name
             local shouldReplace = turtleUtils.pos.y > turtleUtils.replaceBlocksBehindDisabledDepth
-            if blockToPlace ~= "air" and shouldReplace then
+            if blockToPlace ~= "minecraft:air" and shouldReplace and turtleUtils.getItemSlot(blockToPlace) then
                 -- Turn around and place the block
                 turtle.turnLeft()
                 turtle.turnLeft()
@@ -120,7 +129,7 @@ function turtleUtils.forward(breakBlocks)
         if success and not string.find(block.name, turtleUtils.targetBlockName) then
             table.insert(turtleUtils.blockList, block.name) -- Add the block to the list                                    -- Break the block
         else
-            table.insert(turtleUtils.blockList, "air")      -- No block, store `nil`
+            table.insert(turtleUtils.blockList, "minecraft:air")
         end
         turtle.dig()
     end
@@ -140,8 +149,8 @@ end
 function turtleUtils.down(breakBlocks)
     if breakBlocks then
         if #turtleUtils.blockList == 2 then
-            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
-            if blockToPlace ~= "air" then
+            local blockToPlace = blockToBrokenBlock(table.remove(turtleUtils.blockList, 1)) -- Oldest block
+            if blockToPlace ~= "minecraft:air" then
                 turtleUtils.placeBlockUp(blockToPlace)
             end
         end
@@ -149,7 +158,7 @@ function turtleUtils.down(breakBlocks)
         if success and not string.find(block.name, turtleUtils.targetBlockName) then
             table.insert(turtleUtils.blockList, block.name)
         else
-            table.insert(turtleUtils.blockList, "air")
+            table.insert(turtleUtils.blockList, "minecraft:air")
         end
         turtle.digDown()
     end
@@ -163,8 +172,8 @@ end
 function turtleUtils.up(breakBlocks)
     if breakBlocks then
         if #turtleUtils.blockList == 2 then
-            local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
-            if blockToPlace ~= "air" then
+            local blockToPlace = blockToBrokenBlock(table.remove(turtleUtils.blockList, 1)) -- Oldest block
+            if blockToPlace ~= "minecraft:air" then
                 turtleUtils.placeBlockDown(blockToPlace)
             end
         end
@@ -172,7 +181,7 @@ function turtleUtils.up(breakBlocks)
         if success and not string.find(block.name, turtleUtils.targetBlockName) then
             table.insert(turtleUtils.blockList, block.name)
         else
-            table.insert(turtleUtils.blockList, "air")
+            table.insert(turtleUtils.blockList, "minecraft:air")
         end
         turtle.digUp()
     end
@@ -192,9 +201,9 @@ function turtleUtils.back()
         return true
     end
     if #turtleUtils.blockList > 0 then
-        local blockToPlace = table.remove(turtleUtils.blockList, 1) -- Oldest block
+        local blockToPlace = blockToBrokenBlock(table.remove(turtleUtils.blockList, 1)) -- Oldest block
         local shouldReplace = turtleUtils.pos.y > turtleUtils.replaceBlocksBehindDisabledDepth
-        if blockToPlace ~= "air" and shouldReplace then
+        if blockToPlace ~= "minecraft:air" and shouldReplace and turtleUtils.getItemSlot(blockToPlace) then
             turtleUtils.placeBlock(blockToPlace)
         end
     end
@@ -268,9 +277,9 @@ end
 function turtleUtils.goTo(pos, breakBlocks, targetDistance)
     turtleUtils.blockList = {}
     pos = {
-        x = round(pos.x),
-        y = round(pos.y),
-        z = round(pos.z),
+        x = math.floor(pos.x),
+        y = math.floor(pos.y),
+        z = math.floor(pos.z),
         d = pos.d
     }
     while true do

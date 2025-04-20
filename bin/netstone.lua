@@ -14,6 +14,7 @@ function printHelp()
     termUtils.print("  setout <value> - Sets a action on out of range.")
     termUtils.print("  setside <side> - Sets the redstone side.")
     termUtils.print("  setrange <range> - Sets the range.")
+    termUtils.print("  setoffset <computergroup|name|id|-> - Remotely set the offset of target pc to current pc.")
     termUtils.print("  enable - Enables ranged mode.")
     termUtils.print("  disable - Disables ranged mode.")
 end
@@ -31,8 +32,31 @@ if not cIds then
     termUtils.print("Computer not found!", "red")
     return
 end
-
-if args[2] == "open" then
+if args[2] == "setoffset" then
+    if not cIds then
+        termUtils.print("No paired computer found!", "red")
+        return
+    end
+    local gpsPos = gps.getPosition()
+    if gpsPos then
+        for i, cId in ipairs(cIds) do
+            local res = net.emit("NodeOS_setOffset", {
+                pos = gpsPos
+            }, cId)
+            if res then
+                if res.success then
+                    termUtils.print(res.message, "green")
+                else
+                    termUtils.print(res.message, "red")
+                end
+            else
+                termUtils.print("Failed to connect!", "red")
+            end
+        end
+    else
+        termUtils.print("No GPS position available!", "red")
+    end
+elseif args[2] == "open" then
     for i, cId in ipairs(cIds) do
         local res = net.emit("NodeOS_netstoneCommand",
             {

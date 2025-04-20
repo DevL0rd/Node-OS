@@ -1,3 +1,4 @@
+local turtleUtils = require("/lib/turtleUtils")
 local worldDepthLimit = -59
 function listen_giveLocalComputerDetails()
     while true do
@@ -9,26 +10,33 @@ function listen_giveLocalComputerDetails()
     end
 end
 
-pm.createProcess(listen_giveLocalComputerDetails, {isService=true, title="listen_giveLocalComputerDetails"})
+pm.createProcess(listen_giveLocalComputerDetails, { isService = true, title = "listen_giveLocalComputerDetails" })
 
 function giveLocalComputerDetails_thread()
     while true do
         local gpsPos = gps.getPosition()
         if gpsPos then
+            -- local inventory = nil
+            -- if turtle then
+            --     inventory = turtleUtils.getInventory()
+            -- end
             net.emit("NodeOS_giveLocalComputerDetails", {
                 pos = gpsPos,
                 name = os.getComputerLabel(),
                 id = os.getComputerID(),
                 isTurtle = turtle ~= nil,
                 groups = sets.settings.groups,
-                time = os.time()
+                time = os.time(),
+                status = gps.status,
+                target = gps.target,
+                -- inventory = inventory
             })
         end
         sleep(0.5)
     end
 end
 
-pm.createProcess(giveLocalComputerDetails_thread, {isService=true, title="service_giveLocalComputerDetails"})
+pm.createProcess(giveLocalComputerDetails_thread, { isService = true, title = "service_giveLocalComputerDetails" })
 
 
 function listen_setOffset()
@@ -42,7 +50,7 @@ function listen_setOffset()
     end
 end
 
-pm.createProcess(listen_setOffset, {isService=true, title="listen_setOffset"})
+pm.createProcess(listen_setOffset, { isService = true, title = "listen_setOffset" })
 
 function Set(list)
     local set = {}
@@ -52,47 +60,8 @@ end
 
 if os.getComputerID() == sets.settings.master then
     local interestingTilesBlacklist_path = "etc/map/interestingTilesBlacklist.cfg"
-    local interestingTilesBlacklist = {
-        "minecraft:bedrock",
-        "minecraft:cobblestone",
-        "minecraft:dirt",
-        "minecraft:gravel",
-        "minecraft:sand",
-        "minecraft:sandstone",
-        "minecraft:snow",
-        "minecraft:snowblock",
-        "minecraft:stone",
-        "minecraft:grass_block",
-        "minecraft:dirt",
-        "minecraft:coarse_dirt",
-        "minecraft:podzol",
-        "minecraft:oak_leaves",
-        "minecraft:spruce_leaves",
-        "minecraft:birch_leaves",
-        "minecraft:jungle_leaves",
-        "minecraft:acacia_leaves",
-        "minecraft:dark_oak_leaves",
-        "minecraft:sandstone",
-        "minecraft:grass",
-        "minecraft:tallgrass",
-        "minecraft:dead_bush",
-        "minecraft:fern",
-        "minecraft:end_stone",
-        "minecraft:command_block",
-        "minecraft:repeating_command_block",
-        "minecraft:chain_command_block",
-        "minecraft:nether_wart_block",
-        "minecraft:water",
-        "minecraft:lava",
-        "minecraft:bubble_column",
-        "minecraft:crimson_nylium",
-        "minecraft:warped_nylium",
-        "minecraft:cobbled_deepslate",
-        "minecraft:deepslate",
-        "minecraft:dirt_path"
-    }
     if not fs.exists(interestingTilesBlacklist_path) then
-        file.writeTable(interestingTilesBlacklist_path, interestingTilesBlacklist)
+        file.writeTable(interestingTilesBlacklist_path, {})
     else
         interestingTilesBlacklist = file.readTable(interestingTilesBlacklist_path)
     end
@@ -102,86 +71,75 @@ if os.getComputerID() == sets.settings.master then
         fs.makeDir(interestingTiles_path)
     end
     local interestingTiles = {}
+    -- Precompute constants for optimization
+    local minecraftPrefix = "minecraft:"
+    local deepslatePrefix = "minecraft:deepslate_"
+    local minecraftPrefixLen = #minecraftPrefix
+    local deepslatePrefixLen = #deepslatePrefix
 
     function listen_getWorldTiles()
         while true do
             local cid, msg = rednet.receive("NodeOS_getWorldTiles")
             local data = msg.data
-            -- for blocks in data.radius
-            if data.radius > 31 then
-                data.radius = 31
-            end
+
+            -- Clamp radius
+            local radius = math.min(math.floor(data.radius), 10)
+            local height_param = math.floor(math.min(data.height, 9) / 2)
             local tmpTiles = {}
-            data.pos.x = math.floor(data.pos.x)
-            data.pos.y = math.floor(data.pos.y)
-            data.pos.z = math.floor(data.pos.z)
-            print("data.pos.x: " .. data.pos.x)
-            print("data.pos.y: " .. data.pos.y)
-            print("data.pos.z: " .. data.pos.z)
-            local mx = data.pos.x - data.radius
-            local my = data.pos.y - data.height
-            local mz = data.pos.z - data.radius
-            local mx2 = data.pos.x + data.radius
-            local my2 = data.pos.y + data.height
-            local mz2 = data.pos.z + data.radius
-            -- max world height is 320
-            -- min world height is -64 ^ 2
-            if my > 319 then
-                my = 319
-            end
-            if my < worldDepthLimit then
-                my = worldDepthLimit
-            end
-            if my2 > 319 then
-                my2 = 319
-            end
-            if my2 < worldDepthLimit then
-                my2 = worldDepthLimit
-            end
-            -- round y
-            my = math.floor(my)
-            my2 = math.floor(my2)
-            local width = data.radius * 2 + 1
-            --take slices by height
-            for posY = my, my2 do
-                local blockSlice = commands.getBlockInfos(mx, posY, mz, mx2, posY, mz2)
-                count = 0
-                for posX = mx, mx2 do
-                    for posZ = mz, mz2 do
-                        -- x + z*width + y*depth*depth
-                        local ix = math.floor(posX - mx)
-                        -- local iy = math.floor(posY - my)+1
-                        local iz = math.floor(posZ - mz)
-                        local index = ix + iz * width + 1
-                        -- print(ix .. " " .. iy .. " " .. iz .. " -- " .. index)
-                        -- sleep(1)
+            local centerX = math.floor(data.pos.x)
+            local centerY = math.floor(data.pos.y)
+            local centerZ = math.floor(data.pos.z)
+
+            -- Calculate boundaries, clamping Y (use min/max names like example)
+            local min_x = centerX - radius
+            local min_y = math.max(worldDepthLimit, math.min(319, math.floor(centerY - height_param)))
+            local min_z = centerZ - radius
+            local max_x = centerX + radius
+            local max_y = math.max(worldDepthLimit, math.min(319, math.floor(centerY + height_param)))
+            local max_z = centerZ + radius
+
+            -- Calculate dimensions based on the actual volume queried (matching example variable names)
+            local width = max_x - min_x + 1
+            local height = max_y - min_y + 1 -- This is the actual height of the volume
+            local depth = max_z - min_z + 1
+
+            -- Fetch block info for the entire volume at once
+            local blockSlice = commands.getBlockInfos(min_x, min_y, min_z, max_x, max_y, max_z)
+            -- Iterate through world coordinates like the example
+            -- Loop order matches the index formula structure: Y (slowest), Z (middle), X (fastest)
+            for y = min_y, max_y do
+                for z = min_z, max_z do
+                    for x = min_x, max_x do
+                        -- Calculate the index using the exact formula from the example:
+                        -- index = (x - min_x) + (z - min_z) * width + (y - min_y) * width * depth + 1
+                        local index = (x - min_x) + (z - min_z) * width + (y - min_y) * width * depth + 1
+
+                        -- Access the block data using the calculated index
                         local block = blockSlice[index]
-                        if block.name ~= "minecraft:air" then
-                            name = block.name
-                            -- remove minecraft: from string in name if it is there
-                            if string.find(name, "minecraft:") then
-                                name = string.sub(name, string.len("minecraft:") + 1)
+
+                        -- Process the block if it exists and is not air
+                        if block and block.name ~= "minecraft:air" then
+                            local blockName = block.name -- Use local variable
+
+                            -- Lazily create nested tables only when needed
+                            -- Store using the world coordinates x, y, z
+                            if not tmpTiles[x] then
+                                tmpTiles[x] = {}
                             end
-                            count = count + 1
-                            if not tmpTiles[posX] then
-                                tmpTiles[posX] = {}
+                            if not tmpTiles[x][y] then
+                                tmpTiles[x][y] = {}
                             end
-                            if not tmpTiles[posX][posY] then
-                                tmpTiles[posX][posY] = {}
-                            end
-                            if not tmpTiles[posX][posY][posZ] then
-                                tmpTiles[posX][posY][posZ] = {}
-                            end
-                            tmpTiles[posX][posY][posZ] = name
+                            tmpTiles[x][y][z] = blockName
                         end
                     end
                 end
             end
+
             net.respond(cid, msg.token, tmpTiles)
         end
     end
 
-    pm.createProcess(listen_getWorldTiles, {isService=true, title="listen_getWorldTiles"})
+    pm.createProcess(listen_getWorldTiles, { isService = true, title = "listen_getWorldTiles" })
     -- local getBlockNameFromPartialName_cache = {}
     function getBlockNameFromPartialName(partialName)
         if interestingTiles[partialName] then
@@ -205,14 +163,28 @@ if os.getComputerID() == sets.settings.master then
             local data = msg.data
             local blockName = getBlockNameFromPartialName(data.name)
             if data.all then
+                -- Handle request for all known tiles of a specific type
                 if not blockName then
                     net.respond(cid, msg.token, {
                         tiles = {},
                         name = nil
                     })
                 elseif interestingTiles[blockName] then
+                    -- Create a copy to avoid sending the 'changed' flag
+                    local responseTiles = {}
+                    for x, yTable in pairs(interestingTiles[blockName]) do
+                        if type(x) == "number" then -- Ensure we only copy coordinate data
+                            responseTiles[x] = {}
+                            for y, zTable in pairs(yTable) do
+                                responseTiles[x][y] = {}
+                                for z, val in pairs(zTable) do
+                                    responseTiles[x][y][z] = val
+                                end
+                            end
+                        end
+                    end
                     net.respond(cid, msg.token, {
-                        tiles = interestingTiles[blockName],
+                        tiles = responseTiles,
                         name = blockName
                     })
                 else
@@ -222,102 +194,111 @@ if os.getComputerID() == sets.settings.master then
                     })
                 end
             else
-                -- for blocks in data.radius
-                if data.radius > 31 then
-                    data.radius = 31
-                end
-                data.pos.x = math.floor(data.pos.x)
-                data.pos.y = math.floor(data.pos.y)
-                data.pos.z = math.floor(data.pos.z)
+                -- Handle request for tiles within a radius
+                local radius = math.min(math.floor(data.radius), 10)
+                local height_param = math.floor(math.min(data.height, 9) / 2)
 
-                local mx = data.pos.x - data.radius
-                local my = data.pos.y - data.height
-                local mz = data.pos.z - data.radius
-                local mx2 = data.pos.x + data.radius
-                local my2 = data.pos.y + data.height
-                local mz2 = data.pos.z + data.radius
-                -- max world height is 320
-                -- min world height is -64 ^ 2
-                if my > 319 then
-                    my = 319
-                end
-                if my < worldDepthLimit then
-                    my = worldDepthLimit
-                end
-                if my2 > 319 then
-                    my2 = 319
-                end
-                if my2 < worldDepthLimit then
-                    my2 = worldDepthLimit
-                end
-                -- round y
-                my = math.floor(my)
-                my2 = math.floor(my2)
-                local width = data.radius * 2 + 1
-                local tmpTiles = {}
-                --take slices by height
-                for posY = my, my2 do
-                    local blockSlice = commands.getBlockInfos(mx, posY, mz, mx2, posY, mz2)
-                    count = 0
-                    for posX = mx, mx2 do
-                        for posZ = mz, mz2 do
-                            local ix = math.floor(posX - mx)
-                            local iz = math.floor(posZ - mz)
-                            local index = ix + iz * width + 1
-                            local block = blockSlice[index]
-                            local bm = {}
-                            if block.name ~= "minecraft:air" then
-                                if not interestingTilesBlacklist[block.name] then
-                                    count = count + 1
-                                    --if deepslate_ at begining of name, remove it
-                                    if string.find(block.name, "deepslate_") then
-                                        block.name = string.sub(block.name, string.len("deepslate_") + 1)
+                local centerX = math.floor(data.pos.x)
+                local centerY = math.floor(data.pos.y)
+                local centerZ = math.floor(data.pos.z)
+
+                -- Calculate boundaries, clamping Y (use min/max names like example)
+                local min_x = centerX - radius
+                local min_y = math.max(worldDepthLimit, math.min(319, math.floor(centerY - height_param)))
+                local min_z = centerZ - radius
+                local max_x = centerX + radius
+                local max_y = math.max(worldDepthLimit, math.min(319, math.floor(centerY + height_param)))
+                local max_z = centerZ + radius
+
+                -- Calculate dimensions based on the actual volume queried (matching example variable names)
+                local width = max_x - min_x + 1
+                local height = max_y - min_y + 1 -- This is the actual height of the volume
+                local depth = max_z - min_z + 1
+
+                local tmpTiles = {} -- Tiles matching the specific request within the radius
+
+                -- Fetch block info for the entire volume at once
+                local allBlocks = commands.getBlockInfos(min_x, min_y, min_z, max_x, max_y, max_z)
+
+
+                -- Iterate through world coordinates like the example
+                for posY = min_y, max_y do
+                    for posZ = min_z, max_z do
+                        for posX = min_x, max_x do
+                            -- Calculate the index using the exact formula from the example:
+                            -- index = (x - min_x) + (z - min_z) * width + (y - min_y) * width * depth + 1
+                            local index = (posX - min_x) + (posZ - min_z) * width + (posY - min_y) * width * depth + 1
+
+                            -- Access the block data using the calculated index
+                            local block = allBlocks[index]
+                            local currentBlockName = nil
+                            if block then
+                                currentBlockName = block.name
+                            end
+
+                            -- Process the block if it exists and is not air
+                            if currentBlockName and currentBlockName ~= "minecraft:air" then
+                                if not interestingTilesBlacklist[currentBlockName] then
+                                    -- Handle deepslate prefix optimization
+                                    if string.sub(currentBlockName, 1, deepslatePrefixLen) == deepslatePrefix then
+                                        currentBlockName = minecraftPrefix ..
+                                            string.sub(currentBlockName, deepslatePrefixLen + 1)
                                     end
-                                    if not interestingTiles[block.name] then
-                                        interestingTiles[block.name] = {
-                                            changed = true
-                                        }
+
+                                    -- Update global interestingTiles cache
+                                    if not interestingTiles[currentBlockName] then
+                                        interestingTiles[currentBlockName] = { changed = true }
                                     end
-                                    interestingTiles[block.name].changed = true
-                                    if not interestingTiles[block.name][posX] then
-                                        interestingTiles[block.name][posX] = {}
+                                    interestingTiles[currentBlockName].changed = true
+                                    if not interestingTiles[currentBlockName][posX] then
+                                        interestingTiles[currentBlockName][posX] = {}
                                     end
-                                    if not interestingTiles[block.name][posX][posY] then
-                                        interestingTiles[block.name][posX][posY] = {}
+                                    if not interestingTiles[currentBlockName][posX][posY] then
+                                        interestingTiles[currentBlockName][posX][posY] = {}
                                     end
-                                    if not interestingTiles[block.name][posX][posY][posZ] then
-                                        interestingTiles[block.name][posX][posY][posZ] = 1
-                                    end
+                                    interestingTiles[currentBlockName][posX][posY][posZ] = 1
+
+                                    -- Determine the actual blockName if not already found (only needed if initial data.name was partial)
                                     if not blockName then
-                                        if string.find(block.name, data.name) then
-                                            blockName = block.name
+                                        if string.find(currentBlockName, data.name) then
+                                            blockName = currentBlockName
                                         end
                                     end
-                                    -- print("blockName: " .. blockName)
-                                    if block.name == blockName then
+
+                                    -- Add to tmpTiles if it matches the requested blockName
+                                    if currentBlockName == blockName then
                                         if not tmpTiles[posX] then
                                             tmpTiles[posX] = {}
                                         end
                                         if not tmpTiles[posX][posY] then
                                             tmpTiles[posX][posY] = {}
                                         end
-                                        if not tmpTiles[posX][posY][posZ] then
-                                            tmpTiles[posX][posY][posZ] = 1
-                                        end
+                                        tmpTiles[posX][posY][posZ] = 1
                                     end
                                 end
-                            elseif blockName then
+                            elseif blockName then -- Only check for air removal if we have a specific blockName we are interested in
+                                -- Current block is air (or nil), check if we need to remove it from the global cache
                                 if interestingTiles[blockName] and interestingTiles[blockName][posX] and
                                     interestingTiles[blockName][posX][posY] and
                                     interestingTiles[blockName][posX][posY][posZ] then
-                                    interestingTiles[blockName][posX][posY][posZ] = nil --shitty map compression lol
-                                    if (not next(interestingTiles[blockName][posX][posY])) then
+                                    interestingTiles[blockName][posX][posY][posZ] = nil
+                                    interestingTiles[blockName].changed = true -- Mark for saving
+
+                                    -- Clean up empty nested tables
+                                    if not next(interestingTiles[blockName][posX][posY]) then
                                         interestingTiles[blockName][posX][posY] = nil
-                                        if (not next(interestingTiles[blockName][posX])) then
+                                        if not next(interestingTiles[blockName][posX]) then
                                             interestingTiles[blockName][posX] = nil
-                                            if (not next(interestingTiles[blockName])) then
+                                            -- Check if the entire block type entry is now empty (except 'changed')
+                                            local isEmpty = true
+                                            for k, _ in pairs(interestingTiles[blockName]) do
+                                                if k ~= "changed" then
+                                                    isEmpty = false
+                                                    break
+                                                end
+                                            end
+                                            if isEmpty then
                                                 interestingTiles[blockName] = nil
-                                                interestingTiles_changed = true
                                             end
                                         end
                                     end
@@ -326,6 +307,7 @@ if os.getComputerID() == sets.settings.master then
                         end
                     end
                 end
+
                 net.respond(cid, msg.token, {
                     tiles = tmpTiles,
                     name = blockName
@@ -333,7 +315,8 @@ if os.getComputerID() == sets.settings.master then
             end
         end
     end
-    pm.createProcess(listen_getInterestingTiles, {isService=true, title="listen_getInterestingTiles"})
+
+    pm.createProcess(listen_getInterestingTiles, { isService = true, title = "listen_getInterestingTiles" })
 
     function listen_removeInterestingTile()
         while true do
@@ -353,7 +336,8 @@ if os.getComputerID() == sets.settings.master then
             end
         end
     end
-    pm.createProcess(listen_removeInterestingTile, {isService=true, title="service_removeInterestingTile"})
+
+    pm.createProcess(listen_removeInterestingTile, { isService = true, title = "service_removeInterestingTile" })
 
     function listen_getInterestingTilesBlacklist()
         while true do
@@ -362,7 +346,11 @@ if os.getComputerID() == sets.settings.master then
         end
     end
 
-    pm.createProcess(listen_getInterestingTilesBlacklist, {isService=true, title="service_getInterestingTilesBlacklist"})
+    pm.createProcess(listen_getInterestingTilesBlacklist, {
+        isService = true,
+        title =
+        "service_getInterestingTilesBlacklist"
+    })
 
     function saveServerTiles()
         while true do
@@ -395,7 +383,7 @@ if os.getComputerID() == sets.settings.master then
     end
 
     loadServerTiles()
-    pm.createProcess(saveServerTiles, {isService=true, title="service_saveTiles"})
+    pm.createProcess(saveServerTiles, { isService = true, title = "service_saveTiles" })
 end
 
 
@@ -420,7 +408,7 @@ function trimLocalComputers()
     end
 end
 
-pm.createProcess(trimLocalComputers, {isService=true, title="service_trimLocalComputers"})
+pm.createProcess(trimLocalComputers, { isService = true, title = "service_trimLocalComputers" })
 
 function getPlayerPosition(username)
     -- get player entity data which includes position
@@ -484,7 +472,6 @@ function getPlayerGamemode(username)
     return gamemode
 end
 
-
 function getPlayerSelectedItem(username)
     local ok, result = commands.exec("data get entity " .. username .. " SelectedItem.id")
     local resString = result[1] -- Eg Player1 has the following entity data: {data}
@@ -533,5 +520,4 @@ function listen_getPlayers()
     end
 end
 
-pm.createProcess(listen_getPlayers, {isService=true, title="listen_getPlayers"})
-
+pm.createProcess(listen_getPlayers, { isService = true, title = "listen_getPlayers" })

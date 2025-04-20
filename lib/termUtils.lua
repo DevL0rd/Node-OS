@@ -65,6 +65,20 @@ function termUtils.centerText(text, line, fgColor, bgColor)
     termUtils.write(text, 1, line, fgColor, bgColor, "center")
 end
 
+function termUtils.alignLeft(text, line, fgColor, bgColor)
+    local cx, cy = term.getCursorPos()
+    if line == nil then
+        line = cy
+    end
+    if fgColor == nil then
+        fgColor = "white"
+    end
+    if bgColor == nil then
+        bgColor = "black"
+    end
+    termUtils.write(text, 1, line, fgColor, bgColor)
+end
+
 function termUtils.alignRight(text, line, fgColor, bgColor)
     local cx, cy = term.getCursorPos()
     if line == nil then
@@ -108,6 +122,35 @@ function termUtils.fillLineWithBorder(bchar, line, fgColor, bgColor)
     termUtils.fillLine(" ", line, fgColor, bgColor)
     termUtils.write(bchar, 1, line, fgColor, bgColor)
     termUtils.write(bchar, 1, line, fgColor, bgColor, "right")
+end
+
+function termUtils.drawLine(x1, y1, x2, y2, color)
+    local dx = math.abs(x2 - x1)
+    local dy = -math.abs(y2 - y1)
+    local sx = x1 < x2 and 1 or -1
+    local sy = y1 < y2 and 1 or -1
+    local err = dx + dy
+    local e2
+    local tx, ty = term.getSize()
+    while true do
+        -- Check bounds before drawing
+
+        if x1 >= 1 and x1 <= tx and y1 >= 1 and y1 <= ty then
+            -- Use a character for the line, ensure background doesn't overwrite map
+            termUtils.write(" ", x1, y1, color, color)
+        end
+
+        if x1 == x2 and y1 == y2 then break end
+        e2 = 2 * err
+        if e2 >= dy then
+            err = err + dy
+            x1 = x1 + sx
+        end
+        if e2 <= dx then
+            err = err + dx
+            y1 = y1 + sy
+        end
+    end
 end
 
 function termUtils.triggerPaint()

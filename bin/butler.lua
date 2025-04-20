@@ -14,7 +14,7 @@ function printHelp()
     termUtils.print("  status - Prints the status.")
 end
 
-function status_monitor(cId)
+local function status_monitor(cId)
     local lastStatus = ""
     while true do
         local res = net.emit("NodeOS_butlerStatus", nil, cId)
@@ -47,7 +47,6 @@ if #args == 0 then
 end
 
 local cIds = gps.resolveComputersByString(args[1], true, true) -- must be paired and be a turtle
-local shouldMonitor = false
 if not cIds then
     termUtils.print("No paired turtle found!", "red")
     return
@@ -67,7 +66,6 @@ if args[2] == "find" then
             }, cId)
             if res then
                 if res.success then
-                    shouldMonitor = true
                     termUtils.print("Turtle sent!", "green")
                 else
                     termUtils.print(res.message, "red")
@@ -102,7 +100,6 @@ elseif args[2] == "return" then
         end
         if res then
             if res.success then
-                shouldMonitor = true
                 termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
@@ -144,14 +141,7 @@ elseif args[2] == "toggleBreaking" then
         end
     end
 elseif args[2] == "status" then
-    shouldMonitor = true
+    status_monitor(cIds[1])
 else
     printHelp()
-end
-
-if shouldMonitor then
-    -- for i, cId in ipairs(cIds) do
-    --     parallel.waitForAny(status_monitor, function() end, cId)
-    -- end
-    status_monitor(cIds[1])
 end

@@ -1,4 +1,3 @@
-
 if not term.isColor() then
     printError("Please use a color terminal.")
     return false
@@ -99,12 +98,21 @@ if not fs.exists("/etc/menu/pinned.cfg") then
             },
         },
         {
+            path = "/bin/map.lua",
+            title = "Map",
+            insettings = {
+                height = 17,
+                title = "Map",
+                width = 40,
+            },
+        },
+        {
             path = "/sys/ui/tskmgr.lua",
             title = "Task Manager",
             insettings = {
                 height = 17,
                 title = "Task Manager",
-                width = 30,
+                width = 40,
             },
         },
         {
@@ -204,23 +212,21 @@ function yield()
     os.pullEvent("randomEvent")
 end
 
-
-
 term.setBackgroundColor(colors.black)
 term.clear()
 
 -- Function DeviceDetect
 function detectDevice(DeviceName)
     local DeviceSide = nil
-    for k,v in pairs(redstone.getSides()) do
-        if peripheral.getType(v)==DeviceName then
+    for k, v in pairs(redstone.getSides()) do
+        if peripheral.getType(v) == DeviceName then
             DeviceSide = v
             break
         end
     end
     return DeviceSide
 end
-    
+
 -- Usage:
 local MonitorSide = detectDevice("monitor")
 if MonitorSide then

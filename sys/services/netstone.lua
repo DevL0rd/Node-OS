@@ -8,10 +8,10 @@ local function scanInRange_thread()
             if netstone.settings.enabled then
                 local pairedClients = net.getPairedClients()
                 for id, isPaired in pairs(pairedClients) do
-                    local localComputers = gps.getLocalComputers()
-                    if localComputers[id] then
-                        if localComputers[id].pos then
-                            local dist = gps.getDistance(gpsPos, localComputers[id].pos)
+                    local computer = gps.getComputer(id)
+                    if computer then
+                        if computer.pos then
+                            local dist = gps.getDistance(gpsPos, computer.pos)
                             if netstone.inRangeClients[id] then
                                 if dist > netstone.settings.actuationRange then
                                     netstone.inRangeClients[id] = nil
@@ -68,7 +68,7 @@ local function scanInRange_thread()
     end
 end
 
-pm.createProcess(scanInRange_thread, {isService=true, title="scanInRange_thread"})
+pm.createProcess(scanInRange_thread, { isService = true, title = "scanInRange_thread" })
 
 function listen_netStoneCommand()
     while true do
@@ -218,7 +218,7 @@ function listen_netStoneCommand()
     end
 end
 
-pm.createProcess(listen_netStoneCommand, {isService=true, title="listen_netStoneCommand"})
+pm.createProcess(listen_netStoneCommand, { isService = true, title = "listen_netStoneCommand" })
 
 local settings = netstone.getSettings()
 if settings.state then

@@ -7,6 +7,40 @@ local gps_settings_path = "etc/gps/settings.cfg"
 local localComputers_path = "etc/gps/localComputers.dat"
 gps.settings = file.readTable(gps_settings_path)
 gps.isConnected = false
+gps.status = "Idle"
+gps.target = nil
+function gps.setTarget(target)
+    gps.target = target
+end
+
+function gps.clearTarget()
+    gps.target = nil
+end
+
+function gps.getTarget()
+    return gps.target
+end
+
+function gps.getTargetDistance()
+    local gpsPos = gps.getPosition()
+    if gpsPos and gps.target then
+        return gps.getDistance(gpsPos, gps.target)
+    end
+    return nil
+end
+
+function gps.setStatus(status)
+    gps.status = status
+end
+
+function gps.clearStatus()
+    gps.status = "Idle"
+end
+
+function gps.getStatus()
+    return gps.status
+end
+
 function gps.saveSettings(ns)
     file.writeTable(gps_settings_path, ns)
 end
@@ -17,6 +51,14 @@ end
 
 function gps.getLocalComputers()
     return gps.localComputers
+end
+
+function gps.getComputer(id)
+    local localComputers = gps.getLocalComputers()
+    if localComputers[id] then
+        return localComputers[id]
+    end
+    return nil
 end
 
 function gps.saveLocalComputers(computers)
@@ -155,24 +197,30 @@ function gps.getClosestPC(mustBePaired, mustBeTurtle)
     return nil
 end
 
-function round(x)
-    return x >= 0 and math.floor(x + 0.5) or math.ceil(x - 0.5)
-end
-
 local failedgpscount = 0
 local oldPos = nil
 local oldDir = gps.directions.north
 local lastPoll = 0
 
 function gps.getDirectionTraveled(posFirst, posSecond)
-    if posSecond.x > posFirst.x then
-        oldDir = gps.directions.east
-    elseif posSecond.x < posFirst.x then
-        oldDir = gps.directions.west
-    elseif posSecond.z > posFirst.z then
-        oldDir = gps.directions.south
-    elseif posSecond.z < posFirst.z then
-        oldDir = gps.directions.north
+    local deltaX = posSecond.x - posFirst.x
+    local deltaZ = posSecond.z - posFirst.z
+
+    -- Determine which axis had the larger change
+    if math.abs(deltaX) > math.abs(deltaZ) then
+        -- X-axis had larger change
+        if deltaX > 0 then
+            oldDir = gps.directions.east
+        else
+            oldDir = gps.directions.west
+        end
+    elseif math.abs(deltaZ) > math.abs(deltaX) then
+        -- Z-axis had larger change (or equal, defaulting to Z)
+        if deltaZ > 0 then
+            oldDir = gps.directions.south
+        else
+            oldDir = gps.directions.north
+        end
     end
     return oldDir
 end
@@ -219,9 +267,9 @@ function gps.getPosition(roundNumber)
     end
     if roundNumber and oldPos then
         return {
-            x = round(oldPos.x),
-            y = round(oldPos.y),
-            z = round(oldPos.z),
+            x = math.floor(oldPos.x),
+            y = math.floor(oldPos.y),
+            z = math.floor(oldPos.z),
             d = oldPos.d
         }
     else
@@ -234,7 +282,7 @@ function gps.getDistance(pos1, pos2, roundNumber)
     local dy = pos1.y - pos2.y
     local dz = pos1.z - pos2.z
     if roundNumber then
-        return round(math.sqrt(dx * dx + dy * dy + dz * dz))
+        return math.floor(math.sqrt(dx * dx + dy * dy + dz * dz))
     else
         return math.sqrt(dx * dx + dy * dy + dz * dz)
     end
@@ -257,8 +305,8 @@ function gps.setWorldTiles(pos, radius, height, blocks) --very optimized sync
     --emulate get
     local data = {}
     data.pos = pos
-    data.radius = radius
-    data.height = height
+    data.radius = math.min(math.floor(radius), 10)
+    data.height = math.floor(math.min(height, 9) / 2)
 
     data.pos.x = math.floor(data.pos.x)
     data.pos.y = math.floor(data.pos.y)
@@ -325,8 +373,8 @@ function gps.setInterestingTiles(pos, radius, height, name, blocks) --very optim
     --emulate get
     local data = {}
     data.pos = pos
-    data.radius = radius
-    data.height = height
+    data.radius = math.min(math.floor(radius), 10)
+    data.height = math.floor(math.min(height, 9) / 2)
 
     data.pos.x = math.floor(data.pos.x)
     data.pos.y = math.floor(data.pos.y)
@@ -423,7 +471,6 @@ function gps.findBlock(name)
     local z = math.floor(gpsPos.z)
     local r = 1
     local maxR = 256
-    local searchCount = 0
     for r = 1, maxR do
         local x2 = x - r
         local y2 = y - r
@@ -444,9 +491,8 @@ function gps.findBlock(name)
                                     z3 = z2e
                                 end
                             end
-                            searchCount = searchCount + 1
                             if gps.interestingTiles[blockName][x3][y3][z3] then
-                                return { x = x3, y = y3, z = z3, name = name }
+                                return { x = x3, y = y3, z = z3, name = blockName }
                             end
                         end
                     end
@@ -457,35 +503,190 @@ function gps.findBlock(name)
     return nil
 end
 
-function gps.getWorldTiles(radius, height)
-    local gpsPos = gps.getPosition()
-    if gpsPos then
-        local blocks = net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = gpsPos },
-            sets.settings.master)
-        if blocks then
-            gps.setWorldTiles(gpsPos, radius, height, blocks)
+function gps.isUnderSomething(pos)
+    local checkHeight = 5
+    if not pos then
+        pos = gps.getPosition()
+    end
+    if not pos then
+        return false
+    end
+    local x = math.floor(pos.x)
+    local y = math.floor(pos.y)
+    local z = math.floor(pos.z)
+
+    local isUnderSomething = false
+
+    for i = 1, checkHeight do
+        if gps.worldTiles[x] and gps.worldTiles[x][y + i] and gps.worldTiles[x][y + i][z] then
+            local block = gps.worldTiles[x][y + i][z]
+            if block then
+                -- Check if block name contains glass or leaves
+                local blockName = block.name or ""
+                local isTransparent = string.find(string.lower(blockName), "glass") or
+                    string.find(string.lower(blockName), "leaves")
+
+                if not isTransparent then
+                    isUnderSomething = true
+                    break
+                end
+            end
         end
     end
+    return isUnderSomething
+end
+
+function gps.getWorldTiles(radius, height, pos)
+    if not pos then
+        pos = gps.getPosition()
+    end
+
+    if not pos then
+        -- Cannot proceed without a position
+        return gps.worldTiles -- Return current data, possibly empty
+    end
+
+    local maxRadius = 10
+    local maxHeight = 9
+
+    -- Ensure radius and height are numbers and at least 1
+    radius = math.max(1, math.floor(tonumber(radius) or 1))
+    height = math.max(1, math.floor(tonumber(height) or 1))
+
+    if radius <= maxRadius and height <= maxHeight then
+        -- Request fits within limits, proceed as before
+        local blocks = net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = pos },
+            sets.settings.master)
+        if blocks then
+            gps.setWorldTiles(pos, radius, height, blocks)
+        end
+    else
+        -- Request exceeds limits, split into chunks
+        local chunkRadius = maxRadius
+        local chunkHeight = maxHeight
+        -- Calculate the actual scan dimensions based on how setWorldTiles interprets radius/height
+        local chunkScanRadius = chunkRadius                     -- 10
+        local chunkScanHalfHeight = math.floor(chunkHeight / 2) -- 4
+        local chunkSpanH = chunkScanRadius * 2 + 1              -- 21 (Horizontal diameter)
+        local chunkSpanV = chunkScanHalfHeight * 2 + 1          -- 9 (Vertical span)
+
+        -- Calculate total area bounds based on the *requested* radius and height
+        local reqScanHalfHeight = math.floor(height / 2)
+        local minX = pos.x - radius
+        local maxX = pos.x + radius
+        local minY = pos.y - reqScanHalfHeight
+        local maxY = pos.y + reqScanHalfHeight
+        local minZ = pos.z - radius
+        local maxZ = pos.z + radius
+
+        -- Iterate through chunks based on their bottom-south-west corner
+        -- The step size is the span of each chunk
+        for startY = minY, maxY, chunkSpanV do
+            for startX = minX, maxX, chunkSpanH do
+                for startZ = minZ, maxZ, chunkSpanH do
+                    -- Calculate the center of this chunk for the request
+                    -- The center is the start corner + half the chunk's dimensions
+                    local chunkCenterX = startX + chunkScanRadius
+                    local chunkCenterY = startY + chunkScanHalfHeight
+                    local chunkCenterZ = startZ + chunkScanRadius
+                    local chunkPos = { x = chunkCenterX, y = chunkCenterY, z = chunkCenterZ }
+
+                    local blocks = net.emit("NodeOS_getWorldTiles",
+                        { radius = chunkRadius, height = chunkHeight, pos = chunkPos },
+                        sets.settings.master)
+
+                    if blocks then
+                        -- Use the chunk's center, radius, and height for setting tiles
+                        gps.setWorldTiles(chunkPos, chunkRadius, chunkHeight, blocks)
+                    end
+                    -- Small sleep to avoid overwhelming the network or target computer
+                    os.sleep(0.1)
+                end
+            end
+        end
+    end
+
     return gps.worldTiles
 end
 
-function gps.getInterestingTiles(radius, height, name, gpsPos)
-    if not gpsPos then
-        gpsPos = gps.getPosition()
+function gps.getInterestingTiles(radius, height, name, pos)
+    if not pos then
+        pos = gps.getPosition()
     end
-    if gpsPos then
+
+    if not pos then
+        -- Cannot proceed without a position
+        return gps.interestingTiles -- Return current data, possibly empty
+    end
+
+    local maxRadius = 10
+    local maxHeight = 9
+
+    -- Ensure radius and height are numbers and at least 1
+    radius = math.max(1, math.floor(tonumber(radius) or 1))
+    height = math.max(1, math.floor(tonumber(height) or 1))
+    local fullName = name
+    if radius <= maxRadius and height <= maxHeight then
+        -- Request fits within limits, proceed as before
         local res = net.emit("NodeOS_getInterestingTiles",
-            { radius = radius, height = height, pos = gpsPos, name = name },
+            { radius = radius, height = height, name = name, pos = pos },
             sets.settings.master)
-        if res and res.name then
-            gps.setInterestingTiles(gpsPos, radius, height, res.name, res.tiles)
-            return {
-                name = res.name,
-                tiles = gps.interestingTiles[res.name]
-            }
+        if res then
+            gps.setInterestingTiles(pos, radius, height, res.name, res.tiles)
+            fullName = res.name
+        end
+    else
+        -- Request exceeds limits, split into chunks
+        local chunkRadius = maxRadius
+        local chunkHeight = maxHeight
+        -- Calculate the actual scan dimensions based on how setWorldTiles interprets radius/height
+        local chunkScanRadius = chunkRadius                     -- 10
+        local chunkScanHalfHeight = math.floor(chunkHeight / 2) -- 4
+        local chunkSpanH = chunkScanRadius * 2 + 1              -- 21 (Horizontal diameter)
+        local chunkSpanV = chunkScanHalfHeight * 2 + 1          -- 9 (Vertical span)
+
+        -- Calculate total area bounds based on the *requested* radius and height
+        local reqScanHalfHeight = math.floor(height / 2)
+        local minX = pos.x - radius
+        local maxX = pos.x + radius
+        local minY = pos.y - reqScanHalfHeight
+        local maxY = pos.y + reqScanHalfHeight
+        local minZ = pos.z - radius
+        local maxZ = pos.z + radius
+
+        -- Iterate through chunks based on their bottom-south-west corner
+        -- The step size is the span of each chunk
+        for startY = minY, maxY, chunkSpanV do
+            for startX = minX, maxX, chunkSpanH do
+                for startZ = minZ, maxZ, chunkSpanH do
+                    -- Calculate the center of this chunk for the request
+                    -- The center is the start corner + half the chunk's dimensions
+                    local chunkCenterX = startX + chunkScanRadius
+                    local chunkCenterY = startY + chunkScanHalfHeight
+                    local chunkCenterZ = startZ + chunkScanRadius
+                    local chunkPos = { x = chunkCenterX, y = chunkCenterY, z = chunkCenterZ }
+
+                    local res = net.emit("NodeOS_getInterestingTiles",
+                        { radius = chunkRadius, height = chunkHeight, name = name, pos = chunkPos },
+                        sets.settings.master)
+
+                    if res then
+                        -- Use the chunk's center, radius, and height for setting tiles
+                        gps.setInterestingTiles(chunkPos, chunkRadius, chunkHeight, res.name, res.tiles)
+                        fullName = res.name
+                    end
+
+                    -- Small sleep to avoid overwhelming the network or target computer
+                    os.sleep(0.1)
+                end
+            end
         end
     end
-    return nil
+
+    return {
+        name = fullName,
+        tiles = gps.interestingTiles[fullName]
+    }
 end
 
 function gps.getAllInterestingTiles(name)
