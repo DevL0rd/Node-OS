@@ -55,6 +55,7 @@ local function draw()
     term.setTextColor(theme.main.background)
     term.setBackgroundColor(foregroundColor)
     term.write("\133")
+    os.queueEvent("pm_paint")
 end
 
 draw()

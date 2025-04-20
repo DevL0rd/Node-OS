@@ -247,7 +247,7 @@ function map.updateThread()
         if map.triggerUpdate then
             map.triggerUpdate()
         end
-        if not map.lastFetchPosition or gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
+        if not map.lastFetchPosition or not next(map.worldTiles) or gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
             map.worldTiles = gps.getWorldTiles((map.rw / 2) + 1, 10, map.pos)
             map.lastFetchPosition = map.pos
         end
@@ -292,11 +292,7 @@ function map.setPosition(x, y, z)
 end
 
 function map.setTarget(targetPos)
-    if targetPos then
-        map.targetPos = { x = math.floor(targetPos.x), y = math.floor(targetPos.y), z = math.floor(targetPos.z) }
-    else
-        map.targetPos = nil
-    end
+    map.targetPos = { x = math.floor(targetPos.x), y = math.floor(targetPos.y), z = math.floor(targetPos.z) }
 end
 
 function map.setOrientation(orientation)

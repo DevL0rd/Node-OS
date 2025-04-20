@@ -61,16 +61,6 @@ function os_thread()
     })
     pm.selectProcess(loginID)
   else
-    files = fs.list("/home/startup")
-    for i, v in pairs(files) do
-      v = "/home/startup/" .. v
-      if v:sub(-4) == ".lua" then
-        os.run({
-          _G = _G,
-          package = package
-        }, v)
-      end
-    end
     pm.selectProcess(pm.createProcess("/sys/shell.lua", {
       showTitlebar = false,
       dontShowInTitlebar = true,
@@ -81,10 +71,10 @@ function os_thread()
       width = w,
       height = h,
     }))
-      -- os.run({0
-      --   _G = _G,
-      --   package = package
-      -- }, "/sys/shell.lua")
+    -- os.run({0
+    --   _G = _G,
+    --   package = package
+    -- }, "/sys/shell.lua")
   end
   pm.drawProcesses()
   pm.eventLoop()

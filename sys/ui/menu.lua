@@ -80,45 +80,46 @@ local function drawUI()
 
     local pos = 1
     pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
-      , none))
+    , none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(2, pos, "Pinned", colors.white, theme.menu.background, none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
-      , none))
+    , none))
     pos = pos + 1
     for i, v in pairs(pinned) do
       pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.title, sw), colors.white,
         theme.menu.background, function()
-        pm.endProcess(id)
-        pm.selectProcess(pm.createProcess(v.path, v.insettings))
-        cleanRecent(v.path)
-        table.insert(recent, 1, {
-          name = v.insettings.title or fs.getName(v.path),
-          path = v.path,
-          settings = {
-            width = v.insettings.width,
-            height = v.insettings.height,
-            title = v.insettings.title,
-          }
-        })
-        updateRecent()
-      end))
+          pm.endProcess(id)
+          pm.selectProcess(pm.createProcess(v.path, v.insettings))
+          cleanRecent(v.path)
+          table.insert(recent, 1, {
+            name = v.insettings.title or fs.getName(v.path),
+            path = v.path,
+            settings = {
+              width = v.insettings.width,
+              height = v.insettings.height,
+              title = v.insettings.title,
+            }
+          })
+          updateRecent()
+        end))
       pos = pos + 1
     end
 
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
-      , none))
+    , none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(2, pos, "Recent", colors.white, theme.menu.background, none))
     pos = pos + 1
     pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray, theme.menu.background
-      , none))
+    , none))
     pos = pos + 1
     for i, v in pairs(recent) do
-      pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.name, sw), colors.white, theme.menu.background
-        , function()
+      pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.name, sw), colors.white, theme.menu
+      .background
+      , function()
         pm.endProcess(id)
         pm.selectProcess(pm.createProcess(v.path, {}))
         cleanRecent(v.path)
@@ -144,7 +145,7 @@ local function drawUI()
     searchWindow.setElements({})
     if #searchResults == 0 then
       searchWindow.addElement(scroll.createElement(math.ceil(searchWindow.getWidth() / 2 - string.len("No results") / 2)
-        , pos, "No results.", colors.gray, theme.menu.background, function() end))
+      , pos, "No results.", colors.gray, theme.menu.background, function() end))
     else
       searchWindow.addElement(scroll.createElement(1, pos, "Found " .. #searchResults .. " results", colors.white,
         theme.menu.background, none))

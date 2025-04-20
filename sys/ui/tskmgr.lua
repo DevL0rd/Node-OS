@@ -37,6 +37,7 @@ local function draw()
   if contextShown then
     drawContextMenu()
   end
+  os.queueEvent("pm_paint")
 end
 
 while true do

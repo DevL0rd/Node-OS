@@ -11,31 +11,6 @@ function printHelp()
     termUtils.print("  return   <canBreakBlock>- Returns to the home.")
     termUtils.print("  follow <canBreakBlock> - Follow computer issuing the command.")
     termUtils.print("  toggleBreaking - Toggle block breaking.")
-    termUtils.print("  status - Prints the status.")
-end
-
-local function status_monitor(cId)
-    local lastStatus = ""
-    while true do
-        local res = net.emit("NodeOS_butlerStatus", nil, cId)
-        if res then
-            if res.success then
-                if res.status ~= lastStatus then
-                    if res.status == "Complete!" then
-                        termUtils.print(res.status, "green")
-                        return
-                    end
-                    termUtils.print(res.status)
-                    lastStatus = res.status
-                end
-            else
-                termUtils.print(res.message, "red")
-            end
-        else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
-        end
-        sleep(0.2)
-    end
 end
 
 local args = { ... }
@@ -118,7 +93,6 @@ elseif args[2] == "follow" then
         end
         if res then
             if res.success then
-                shouldMonitor = true
                 termUtils.print(res.message, "green")
             else
                 termUtils.print(res.message, "red")
@@ -140,8 +114,6 @@ elseif args[2] == "toggleBreaking" then
             termUtils.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
-elseif args[2] == "status" then
-    status_monitor(cIds[1])
 else
     printHelp()
 end

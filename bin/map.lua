@@ -57,9 +57,6 @@ end
 
 function drawUI()
     local w, h = term.getSize()
-    if monitor then
-        w, h = monitor.getSize()
-    end
     map.setRenderPosition(1, 3, w, h - 2)
     termUtils.fillLine(" ", 1, "black", "black")
     termUtils.fillLine(" ", 2, "black", "black")
@@ -77,11 +74,13 @@ function drawUI()
     elseif isFollowMode and followId then
         local computer = gps.getComputer(followId)
         if computer and computer.pos then
-            local targetStr = computer.name .. "(" .. followId .. "): " .. computer.status
+            local targetStr = computer.status
             termUtils.centerText(targetStr, 2, "white", "black")
             map.setPosition(computer.pos.x, computer.pos.y, computer.pos.z)
             map.setOrientation(computer.pos.d)
-            map.setTarget(computer.target)
+            if computer.target then
+                map.setTarget(computer.target)
+            end
         else
             termUtils.centerText("Target not found", 2, "white", "black")
         end
@@ -96,10 +95,6 @@ function drawUI()
 end
 
 local w, h = term.getSize()
-if monitor then
-    w, h = monitor.getSize()
-end
-
 local args = { ... }
 loadLocations()
 function printHelp()

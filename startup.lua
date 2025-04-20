@@ -242,4 +242,3 @@ else
         "/sys/kernel.lua"
     )
 end
---  if there is monitor run on monitor

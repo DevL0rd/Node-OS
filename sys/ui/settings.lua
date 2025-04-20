@@ -226,6 +226,7 @@ local function draw()
     drawSubmenu("Configuration", "Open CCEmuX Configuration", 4, nil, false)
     drawSubmenu("Data Directory", "Open this computer's data directory", 7, nil, false)
   end
+  os.queueEvent("pm_paint")
 end
 
 while true do

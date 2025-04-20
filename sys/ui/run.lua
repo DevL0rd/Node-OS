@@ -7,11 +7,11 @@ local function draw()
     local w, h = term.getSize()
     term.setBackgroundColor(colors.white)
     term.clear()
-    term.setCursorPos(2,2)
+    term.setCursorPos(2, 2)
     term.setTextColor(colors.gray)
     term.write("Enter program path")
     box.redraw()
-    term.setCursorPos(2,6)
+    term.setCursorPos(2, 6)
     term.setBackgroundColor(colors.lightGray)
     term.setTextColor(colors.gray)
     term.write(" Run ")
@@ -47,13 +47,14 @@ local function draw()
     term.setTextColor(colors.white)
     term.setBackgroundColor(foregroundColor)
     term.write("\133")
+    os.queueEvent("pm_paint")
 end
 
 draw()
 local content = ""
 while true do
     draw()
-    local e = {os.pullEvent()}
+    local e = { os.pullEvent() }
     if e[1] == "mouse_click" then
         local m, x, y = e[2], e[3], e[4]
         if x >= 2 and x <= w - 2 and y == 4 then
