@@ -105,34 +105,7 @@ if not fs.exists("/etc/menu/pinned.cfg") then
                 title = "Map",
                 width = 40,
             },
-        },
-        {
-            path = "/sys/ui/tskmgr.lua",
-            title = "Task Manager",
-            insettings = {
-                height = 17,
-                title = "Task Manager",
-                width = 40,
-            },
-        },
-        {
-            path = "/sys/ui/settings.lua",
-            title = "Settings",
-            insettings = {
-                height = 17,
-                title = "Settings",
-                width = 40,
-            },
-        },
-        {
-            path = "/sys/ui/about.lua",
-            title = "About",
-            insettings = {
-                height = 10,
-                title = "About NodeOS",
-                width = 29,
-            },
-        },
+        }
     }))
     file.close()
 end
@@ -160,7 +133,10 @@ if not fs.exists("/etc/theme.cfg") then
     file.close()
 end
 
-local settings = require("/lib/settings")
+local fakenodeos = {}
+local smodule = require("/sys/modules/settings")
+smodule.init(fakenodeos) -- Initialize settings module outside of kernel
+local settings = fakenodeos.settings
 term.clear()
 local completeSetupPassword = false
 while not completeSetupPassword do

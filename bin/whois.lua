@@ -1,43 +1,42 @@
-local termUtils = require("/lib/termUtils")
 local args = { ... }
 
 -- usage whois [range]
 -- details Shows known computers.
-termUtils.print("Computer List:", "purple")
+nodeos.graphics.print("Computer List:", "purple")
 local range = nil
 if args[1] and isInt(tonumber(args[1])) then
     range = tonumber(args[1])
 end
 
-local localComputers = gps.getLocalComputers()
+local localComputers = nodeos.gps.getLocalComputers()
 for id, details in pairs(localComputers) do
     local dist = "?"
-    local gpsPos = gps.getPosition()
+    local gpsPos = nodeos.gps.getPosition()
     if gpsPos and localComputers[id].pos then
-        dist = math.floor(gps.getDistance(gpsPos, localComputers[id].pos))
+        dist = math.floor(nodeos.gps.getDistance(gpsPos, localComputers[id].pos))
     end
-    local pairdDevices = net.getPairedDevices()
+    local pairdDevices = nodeos.net.getPairedDevices()
     if dist ~= "?" and range then
         if dist <= range then
-            if (net.ping(id)) then
+            if (nodeos.net.ping(id)) then
                 if pairdDevices[id] then
-                    termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
+                    nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
                 else
-                    termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
+                    nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
                 end
             else
-                termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
+                nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
             end
         end
     else
-        if (net.ping(id)) then
+        if (nodeos.net.ping(id)) then
             if pairdDevices[id] then
-                termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
+                nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "green")
             else
-                termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
+                nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "orange")
             end
         else
-            termUtils.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
+            nodeos.graphics.print("   " .. details.name .. "@" .. id .. " Dist: " .. dist, "red")
         end
     end
 end

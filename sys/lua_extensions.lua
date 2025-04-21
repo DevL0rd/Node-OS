@@ -1,6 +1,28 @@
------------------
---MISC Function--
-function deepcopy(orig)
+function _G.saveTable(path, table)
+    local file = fs.open(path, "w")
+    file.write(textutils.serialize(table))
+    file.close()
+end
+
+function _G.loadTable(path)
+    if fs.exists(path) then
+        local file = fs.open(path, "r")
+        local content = file.readAll()
+        file.close()
+        return textutils.unserialize(content)
+    else
+        return nil
+    end
+end
+
+local packageDirs = loadTable("/etc/libs.cfg")
+for i, v in pairs(packageDirs) do
+    package.path = package.path .. ";" .. v
+end
+_G.package = package
+_G.shell = shell
+
+function _G.deepcopy(orig)
     local orig_type = type(orig)
     local copy
     if orig_type == 'table' then
@@ -15,13 +37,13 @@ function deepcopy(orig)
     return copy
 end
 
-function getWords(str)
+function _G.getWords(str)
     local words = {}
     for word in str:gmatch("%S+") do table.insert(words, word) end
     return words
 end
 
-function listToString(list)
+function _G.listToString(list)
     local str = nil
     for i, word in pairs(list) do
         if str then
@@ -33,15 +55,15 @@ function listToString(list)
     return str
 end
 
-function isInt(n)
+function _G.isInt(n)
     return (type(n) == "number") and (math.floor(n) == n)
 end
 
-function isNan(n)
+function _G.isNan(n)
     return (tostring(n) == "nan")
 end
 
-function getCharOfLength(char, len)
+function _G.getCharOfLength(char, len)
     local nStr = ""
     while (len > 0) do
         nStr = nStr .. char
@@ -50,7 +72,7 @@ function getCharOfLength(char, len)
     return nStr
 end
 
-function split(s, delimiter)
+function _G.split(s, delimiter)
     result = {};
     for match in (s .. delimiter):gmatch("(.-)" .. delimiter) do
         table.insert(result, match);

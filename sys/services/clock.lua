@@ -5,4 +5,4 @@ function service_clock()
     end
 end
 
-pm.createProcess(service_clock, {isService=true, title="service_clock"})
+nodeos.createProcess(service_clock, { isService = true, title = "service_clock" })

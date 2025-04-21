@@ -1,17 +1,16 @@
 local netstone = require("/lib/netstone")
-require("/lib/misc")
 local function scanInRange_thread()
     while true do
-        local gpsPos = gps.getPosition()
+        local gpsPos = nodeos.gps.getPosition()
         if gpsPos then
             netstone.getSettings()
             if netstone.settings.enabled then
-                local pairedClients = net.getPairedClients()
+                local pairedClients = nodeos.net.getPairedClients()
                 for id, isPaired in pairs(pairedClients) do
-                    local computer = gps.getComputer(id)
+                    local computer = nodeos.gps.getComputer(id)
                     if computer then
                         if computer.pos then
-                            local dist = gps.getDistance(gpsPos, computer.pos)
+                            local dist = nodeos.gps.getDistance(gpsPos, computer.pos)
                             if netstone.inRangeClients[id] then
                                 if dist > netstone.settings.actuationRange then
                                     netstone.inRangeClients[id] = nil
@@ -68,45 +67,45 @@ local function scanInRange_thread()
     end
 end
 
-pm.createProcess(scanInRange_thread, { isService = true, title = "scanInRange_thread" })
+nodeos.createProcess(scanInRange_thread, { isService = true, title = "scanInRange_thread" })
 
 function listen_netStoneCommand()
     while true do
         local cid, msg = rednet.receive("NodeOS_netstoneCommand")
-        if net.isClientPaired(cid) then
+        if nodeos.net.isClientPaired(cid) then
             local data = msg.data
             if data.command == "open" then
                 netstone.on()
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Open."
                 })
             elseif data.command == "close" then
                 netstone.off()
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Closed."
                 })
             elseif data.command == "toggle" then
                 netstone.toggle()
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Toggled."
                 })
             elseif data.command == "on" then
                 netstone.on()
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": On."
                 })
             elseif data.command == "off" then
                 netstone.off()
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Off."
                 })
             elseif data.command == "pulse" then
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() ..
                         "@" .. os.getComputerID() .. ": Pulsed for " .. data.params[1] .. " seconds."
@@ -123,7 +122,7 @@ function listen_netStoneCommand()
                     netstone.inRangeClients = {}
 
                     netstone.saveSettings(netstone.settings)
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = os.getComputerLabel() ..
                             "@" ..
@@ -131,7 +130,7 @@ function listen_netStoneCommand()
                             ": In range action set to " .. netstone.settings.onInRange .. "."
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Invalid in range action."
                     })
@@ -147,7 +146,7 @@ function listen_netStoneCommand()
                     netstone.inRangeClients = {}
 
                     netstone.saveSettings(netstone.settings)
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = os.getComputerLabel() ..
                             "@" ..
@@ -155,7 +154,7 @@ function listen_netStoneCommand()
                             ": Out of range action set to " .. netstone.settings.onLeaveRange .. "."
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Invalid out of range action."
                     })
@@ -166,13 +165,13 @@ function listen_netStoneCommand()
                     netstone.inRangeClients = {}
 
                     netstone.saveSettings(netstone.settings)
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = os.getComputerLabel() ..
                             "@" .. os.getComputerID() .. ": Range set to " .. netstone.settings.actuationRange .. "."
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Invalid range."
                     })
@@ -183,13 +182,13 @@ function listen_netStoneCommand()
                     netstone.inRangeClients = {}
 
                     netstone.saveSettings(netstone.settings)
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = os.getComputerLabel() ..
                             "@" .. os.getComputerID() .. ": Side set to " .. netstone.settings.side .. "."
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Invalid side."
                     })
@@ -197,20 +196,20 @@ function listen_netStoneCommand()
             elseif data.command == "enable" then
                 netstone.settings.enabled = true
                 netstone.saveSettings(netstone.settings)
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Enabled."
                 })
             elseif data.command == "disable" then
                 netstone.settings.enabled = false
                 netstone.saveSettings(netstone.settings)
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = true,
                     message = os.getComputerLabel() .. "@" .. os.getComputerID() .. ": Disabled."
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this device."
             })
@@ -218,7 +217,7 @@ function listen_netStoneCommand()
     end
 end
 
-pm.createProcess(listen_netStoneCommand, { isService = true, title = "listen_netStoneCommand" })
+nodeos.createProcess(listen_netStoneCommand, { isService = true, title = "listen_netStoneCommand" })
 
 local settings = netstone.getSettings()
 if settings.state then

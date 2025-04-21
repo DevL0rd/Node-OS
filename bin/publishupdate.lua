@@ -26,12 +26,12 @@ ver = ver + 1
 local file = fs.open("sys/ver.txt", "w")
 file.write(ver)
 file.close()
-if os.getComputerID() == sets.settings.master then
+if os.getComputerID() == nodeos.settings.settings.master then
     packNodeOS()
     fs.copy("tmp/updater/NodeOS.czip", "etc/updater/NodeOS-" .. ver .. ".czip")
     print("NodeOS updated to version " .. ver .. "!")
     return
-elseif not net.getPairedDevices()[sets.settings.master] then
+elseif not nodeos.net.getPairedDevices()[nodeos.settings.settings.master] then
     print("Master PC is not paired!")
     return
 end
@@ -42,10 +42,10 @@ local file = fs.open("tmp/updater/NodeOS.czip", "r")
 local data = file.readAll()
 file.close()
 
-res = net.emit("NodeOS_publishUpdate", {
+res = nodeos.net.emit("NodeOS_publishUpdate", {
     data = data,
     ver = ver
-}, sets.settings.master)
+}, nodeos.settings.settings.master)
 
 if res and res.success then
     print("Update published to master PC!")

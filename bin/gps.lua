@@ -1,13 +1,12 @@
-local termUtils = require("/lib/termUtils")
 local args = { ... }
 
 function printHelp()
-    termUtils.print("Usage: gps <command> <arguments>")
-    termUtils.print("  You can use '-' in place of id to get closest computer.")
-    termUtils.print("Commands:")
-    termUtils.print("  help - Prints this help message.")
-    termUtils.print("  positions|pos - Gets the current position.")
-    termUtils.print("  setoffset <computergroup|name|id|-> - Remotely set the offset of target pc to current pc.")
+    nodeos.graphics.print("Usage: nodeos.gps <command> <arguments>")
+    nodeos.graphics.print("  You can use '-' in place of id to get closest computer.")
+    nodeos.graphics.print("Commands:")
+    nodeos.graphics.print("  help - Prints this help message.")
+    nodeos.graphics.print("  positions|pos - Gets the current position.")
+    nodeos.graphics.print("  setoffset <computergroup|name|id|-> - Remotely set the offset of target pc to current pc.")
 end
 
 if #args == 0 then
@@ -16,37 +15,37 @@ if #args == 0 then
 end
 
 if args[1] == "setoffset" then
-    local cIds = gps.resolveComputersByString(args[2], true)
+    local cIds = nodeos.gps.resolveComputersByString(args[2], true)
     if not cIds then
-        termUtils.print("No paired computer found!", "red")
+        nodeos.graphics.print("No paired computer found!", "red")
         return
     end
-    local gpsPos = gps.getPosition()
+    local gpsPos = nodeos.gps.getPosition()
     if gpsPos then
         for i, cId in ipairs(cIds) do
-            local res = net.emit("NodeOS_setOffset", {
+            local res = nodeos.net.emit("NodeOS_setOffset", {
                 pos = gpsPos
             }, cId)
             if res then
                 if res.success then
-                    termUtils.print(res.message, "green")
+                    nodeos.graphics.print(res.message, "green")
                 else
-                    termUtils.print(res.message, "red")
+                    nodeos.graphics.print(res.message, "red")
                 end
             else
-                termUtils.print("Failed to connect!", "red")
+                nodeos.graphics.print("Failed to connect!", "red")
             end
         end
     else
-        termUtils.print("No GPS position available!", "red")
+        nodeos.graphics.print("No GPS position available!", "red")
     end
 elseif args[1] == "position" or args[1] == "pos" then
-    local gpsPos = gps.getPosition()
+    local gpsPos = nodeos.gps.getPosition()
     if gpsPos then
-        local direction = gps.getDirectionString(gpsPos.d)
-        termUtils.print(gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z .. " " .. direction, "green")
+        local direction = nodeos.gps.getDirectionString(gpsPos.d)
+        nodeos.graphics.print(gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z .. " " .. direction, "green")
     else
-        termUtils.print("No GPS position available!", "red")
+        nodeos.graphics.print("No GPS position available!", "red")
     end
 else
     printHelp()

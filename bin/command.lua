@@ -1,11 +1,10 @@
-local termUtils = require("/lib/termUtils")
 local args = { ... }
 
 local function printHelp()
-    termUtils.print("Usage: command <command>")
-    termUtils.print("Commands:")
-    termUtils.print("  help - Prints this help message.")
-    termUtils.print("  <command> - Some minecraft command to run.")
+    nodeos.graphics.print("Usage: command <command>")
+    nodeos.graphics.print("Commands:")
+    nodeos.graphics.print("  help - Prints this help message.")
+    nodeos.graphics.print("  <command> - Some minecraft command to run.")
 end
 
 if #args == 0 then
@@ -20,16 +19,16 @@ end
 
 local command = table.concat(args, " ")
 
-local res = net.emit("NodeOS_minecraftCommand", {
+local res = nodeos.net.emit("NodeOS_minecraftCommand", {
     command = command
-}, sets.settings.master)
+}, nodeos.settings.settings.master)
 
 if res then
     if res.success then
-        termUtils.print(res.message, "white")
+        nodeos.graphics.print(res.message, "white")
     else
-        termUtils.print(res.message, "red")
+        nodeos.graphics.print(res.message, "red")
     end
 else
-    termUtils.print("Failed to connect!", "red")
+    nodeos.graphics.print("Failed to connect!", "red")
 end

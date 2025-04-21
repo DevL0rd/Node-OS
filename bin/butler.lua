@@ -1,16 +1,14 @@
-local termUtils = require("/lib/termUtils")
-
 function printHelp()
-    termUtils.print("Usage: butler computergroup|name|id|- <command> <arguments>")
-    termUtils.print("  You can use '-' in place of id to get closest computer.")
-    termUtils.print("Commands:")
-    termUtils.print("  help - Prints this help message.")
-    termUtils.print("  find <block> [ammount] - Finds a block.")
-    termUtils.print("    If ammount is not specified, it will find until inventory is full.")
-    termUtils.print("  sethome - Sets the home.")
-    termUtils.print("  return   <canBreakBlock>- Returns to the home.")
-    termUtils.print("  follow <canBreakBlock> - Follow computer issuing the command.")
-    termUtils.print("  toggleBreaking - Toggle block breaking.")
+    nodeos.graphics.print("Usage: butler computergroup|name|id|- <command> <arguments>")
+    nodeos.graphics.print("  You can use '-' in place of id to get closest computer.")
+    nodeos.graphics.print("Commands:")
+    nodeos.graphics.print("  help - Prints this help message.")
+    nodeos.graphics.print("  find <block> [ammount] - Finds a block.")
+    nodeos.graphics.print("    If ammount is not specified, it will find until inventory is full.")
+    nodeos.graphics.print("  sethome - Sets the home.")
+    nodeos.graphics.print("  return   <canBreakBlock>- Returns to the home.")
+    nodeos.graphics.print("  follow <canBreakBlock> - Follow computer issuing the command.")
+    nodeos.graphics.print("  toggleBreaking - Toggle block breaking.")
 end
 
 local args = { ... }
@@ -21,9 +19,9 @@ if #args == 0 then
     return
 end
 
-local cIds = gps.resolveComputersByString(args[1], true, true) -- must be paired and be a turtle
+local cIds = nodeos.gps.resolveComputersByString(args[1], true, true) -- must be paired and be a turtle
 if not cIds then
-    termUtils.print("No paired turtle found!", "red")
+    nodeos.graphics.print("No paired turtle found!", "red")
     return
 end
 
@@ -35,83 +33,83 @@ if args[2] == "find" then
             gatherCount = tonumber(args[4])
         end
         for i, cId in ipairs(cIds) do
-            local res = net.emit("NodeOS_butlerFind", {
+            local res = nodeos.net.emit("NodeOS_butlerFind", {
                 name = name,
                 count = gatherCount
             }, cId)
             if res then
                 if res.success then
-                    termUtils.print("Turtle sent!", "green")
+                    nodeos.graphics.print("Turtle sent!", "green")
                 else
-                    termUtils.print(res.message, "red")
+                    nodeos.graphics.print(res.message, "red")
                 end
             else
-                termUtils.print("Failed to connect to " .. cId .. ".", "red")
+                nodeos.graphics.print("Failed to connect to " .. cId .. ".", "red")
             end
         end
     else
-        termUtils.print("No block name specified.", "red")
+        nodeos.graphics.print("No block name specified.", "red")
     end
 elseif args[2] == "sethome" then
     for i, cId in ipairs(cIds) do
-        local res = net.emit("NodeOS_setHome", nil, cId)
+        local res = nodeos.net.emit("NodeOS_setHome", nil, cId)
         if res then
             if res.success then
-                termUtils.print("Home set!", "green")
+                nodeos.graphics.print("Home set!", "green")
             else
-                termUtils.print(res.message, "red")
+                nodeos.graphics.print(res.message, "red")
             end
         else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            nodeos.graphics.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
 elseif args[2] == "return" then
     for i, cId in ipairs(cIds) do
         local res
         if args[3] then
-            res = net.emit("NodeOS_return", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
+            res = nodeos.net.emit("NodeOS_return", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
         else
-            res = net.emit("NodeOS_return", { canBreakBlocks = true }, cId)
+            res = nodeos.net.emit("NodeOS_return", { canBreakBlocks = true }, cId)
         end
         if res then
             if res.success then
-                termUtils.print(res.message, "green")
+                nodeos.graphics.print(res.message, "green")
             else
-                termUtils.print(res.message, "red")
+                nodeos.graphics.print(res.message, "red")
             end
         else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            nodeos.graphics.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
 elseif args[2] == "follow" then
     for i, cId in ipairs(cIds) do
         local res
         if args[3] then
-            res = net.emit("NodeOS_follow", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
+            res = nodeos.net.emit("NodeOS_follow", { canBreakBlocks = (string.lower(args[3]) == "true") }, cId)
         else
-            res = net.emit("NodeOS_follow", { canBreakBlocks = false }, cId)
+            res = nodeos.net.emit("NodeOS_follow", { canBreakBlocks = false }, cId)
         end
         if res then
             if res.success then
-                termUtils.print(res.message, "green")
+                nodeos.graphics.print(res.message, "green")
             else
-                termUtils.print(res.message, "red")
+                nodeos.graphics.print(res.message, "red")
             end
         else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            nodeos.graphics.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
 elseif args[2] == "toggleBreaking" then
     for i, cId in ipairs(cIds) do
-        local res = net.emit("NodeOS_toggleBreaking", nil, cId)
+        local res = nodeos.net.emit("NodeOS_toggleBreaking", nil, cId)
         if res then
             if res.success then
-                termUtils.print(res.message, "green")
+                nodeos.graphics.print(res.message, "green")
             else
-                termUtils.print(res.message, "red")
+                nodeos.graphics.print(res.message, "red")
             end
         else
-            termUtils.print("Failed to connect to " .. cId .. ".", "red")
+            nodeos.graphics.print("Failed to connect to " .. cId .. ".", "red")
         end
     end
 else

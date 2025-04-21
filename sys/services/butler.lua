@@ -1,4 +1,3 @@
-local termUtils = require("/lib/termUtils")
 local turtleUtils = require("/lib/turtleUtils")
 local butler_settings_path = "etc/butler/settings.cfg"
 local butler_settings = {
@@ -15,7 +14,7 @@ local isSaving = false
 function saveButler()
     if not isSaving then
         isSaving = true
-        file.writeTable(butler_settings_path, butler_settings)
+        saveTable(butler_settings_path, butler_settings)
         isSaving = false
     end
 end
@@ -28,7 +27,7 @@ function getDisplayName(fullName)
 end
 
 if fs.exists(butler_settings_path) then
-    butler_settings = file.readTable(butler_settings_path)
+    butler_settings = loadTable(butler_settings_path)
     turtleUtils.blockList = butler_settings.blockList or {}
 else
     saveButler()
@@ -45,21 +44,21 @@ function tileUpdateThread()
         if butler_settings.status == "findingBlocks" then
             if not lastTileUpdatePosition then
                 updatingTiles = true
-                local res = gps.getAllInterestingTiles(butler_settings.navname)
+                local res = nodeos.gps.getAllInterestingTiles(butler_settings.navname)
                 if res then
                     butler_settings.navname = res.name
                 end
-                local res = gps.getInterestingTiles(32, 32, butler_settings.navname)
+                local res = nodeos.gps.getInterestingTiles(32, 32, butler_settings.navname)
                 if res then
                     lastTileUpdatePosition = deepcopy(turtleUtils.pos)
                     butler_settings.navname = res.name
                 end
                 saveButler()
             else
-                local distanceFromLastCheck = gps.getDistance(lastTileUpdatePosition, turtleUtils.pos)
+                local distanceFromLastCheck = nodeos.gps.getDistance(lastTileUpdatePosition, turtleUtils.pos)
                 if distanceFromLastCheck > 7 then
                     updatingTiles = true
-                    local res = gps.getInterestingTiles(10, 9, butler_settings.navname)
+                    local res = nodeos.gps.getInterestingTiles(10, 9, butler_settings.navname)
                     if res then
                         lastTileUpdatePosition = deepcopy(turtleUtils.pos)
                     end
@@ -87,32 +86,32 @@ function findBlocks_step()
         gatherCountString = " (" .. butler_settings.pointsTraveled .. "/Inf)"
     end
     if updatingTiles then
-        gps.setStatus("Scanning for '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
+        nodeos.gps.setStatus("Scanning for '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
         return
     end
-    gps.setStatus("Finding '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
-    local closestBlock = gps.findBlock(butler_settings.navname)
-    gps.clearStatus()
+    nodeos.gps.setStatus("Finding '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
+    local closestBlock = nodeos.gps.findBlock(butler_settings.navname)
+    nodeos.gps.clearStatus()
     if not closestBlock then
-        gps.setStatus("Deep scanning for '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
-        local res = gps.getInterestingTiles(128, 128, butler_settings.navname)
-        gps.clearStatus()
+        nodeos.gps.setStatus("Deep scanning for '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
+        local res = nodeos.gps.getInterestingTiles(128, 128, butler_settings.navname)
+        nodeos.gps.clearStatus()
         if res then
             lastTileUpdatePosition = deepcopy(turtleUtils.pos)
             butler_settings.navname = res.name
         end
-        gps.setStatus("Finding '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
-        closestBlock = gps.findBlock(butler_settings.navname)
-        gps.clearStatus()
+        nodeos.gps.setStatus("Finding '" .. getDisplayName(butler_settings.navname) .. "'" .. gatherCountString)
+        closestBlock = nodeos.gps.findBlock(butler_settings.navname)
+        nodeos.gps.clearStatus()
     end
     if closestBlock then
-        gps.removeInterestingTile(closestBlock.name, closestBlock)
+        nodeos.gps.removeInterestingTile(closestBlock.name, closestBlock)
         turtleUtils.targetBlockName = closestBlock.name
-        gps.setTarget(closestBlock)
-        gps.setStatus("Navigating to " .. getDisplayName(closestBlock.name) .. gatherCountString)
+        nodeos.gps.setTarget(closestBlock)
+        nodeos.gps.setStatus("Navigating to " .. getDisplayName(closestBlock.name) .. gatherCountString)
         turtleUtils.goTo(closestBlock, butler_settings.canBreakBlocks, 0)
-        gps.clearStatus()
-        gps.clearTarget()
+        nodeos.gps.clearStatus()
+        nodeos.gps.clearTarget()
         turtleUtils.targetBlockName = "notset"
         butler_settings.pointsTraveled = butler_settings.pointsTraveled + 1
     else
@@ -131,7 +130,7 @@ function storeBlocks_step()
     --     while updatingTiles do
     --         sleep(0.5)
     --     end
-    --     local chests = gps.getTilesByDistance("minecraft:chest")
+    --     local chests = nodeos.gps.getTilesByDistance("minecraft:chest")
     --     if chests then
     --         for _, item in pairs(inventory) do
     --             local currentItem = item.name
@@ -173,50 +172,50 @@ function storeBlocks_step()
     --         end
     --     end
     -- end
-    -- local gps.getChests
+    -- local nodeos.gps.getChests
 end
 
 function follow_step()
-    local navToComputer = gps.getComputer(butler_settings.navtoid)
+    local navToComputer = nodeos.gps.getComputer(butler_settings.navtoid)
     if navToComputer then
         local computerString = navToComputer.name .. "(" .. butler_settings.navtoid .. ")"
         navToComputer.pos.y = navToComputer.pos.y - 2
-        gps.setTarget({
+        nodeos.gps.setTarget({
             x = navToComputer.pos.x,
             y = navToComputer.pos.y,
             z = navToComputer.pos.z,
             name = computerString
         })
-        gps.setStatus("Following " .. computerString)
+        nodeos.gps.setStatus("Following " .. computerString)
         turtleUtils.goTo(navToComputer.pos, butler_settings.canBreakBlocks, 2)
-        gps.clearTarget()
+        nodeos.gps.clearTarget()
     end
 end
 
 function dumpItems()
-    if gps.interestingTilesBlacklist then
-        turtleUtils.dumpItems(gps.interestingTilesBlacklist)
+    if nodeos.gps.interestingTilesBlacklist then
+        turtleUtils.dumpItems(nodeos.gps.interestingTilesBlacklist)
         turtle.select(1)
     end
 end
 
 function butlerThread()
     turtleUtils.calibrate()
-    gps.getInterestingTilesBlacklist()
+    nodeos.gps.getInterestingTilesBlacklist()
     while true do
         if butler_settings.status == "storeblocks" then
             storeBlocks_step()
         elseif butler_settings.status == "returning" then
-            gps.setTarget({
+            nodeos.gps.setTarget({
                 x = butler_settings.home.x,
                 y = butler_settings.home.y,
                 z = butler_settings.home.z,
                 name = "Home"
             })
-            gps.setStatus("Returning home...")
+            nodeos.gps.setStatus("Returning home...")
             turtleUtils.goTo(butler_settings.home, butler_settings.canBreakBlocks, 0)
-            gps.clearTarget()
-            gps.clearStatus()
+            nodeos.gps.clearTarget()
+            nodeos.gps.clearStatus()
             butler_settings.status = "storeblocks"
             resetState()
             saveButler()
@@ -231,20 +230,20 @@ function butlerThread()
 end
 
 if turtle then
-    pm.createProcess(tileUpdateThread, { isService = true, title = "tileUpdateThread" })
-    pm.createProcess(butlerThread, { isService = true, title = "service_butler" })
+    nodeos.createProcess(tileUpdateThread, { isService = true, title = "tileUpdateThread" })
+    nodeos.createProcess(butlerThread, { isService = true, title = "service_butler" })
 end
 
 function listen_find()
     while true do
         local cid, msg = rednet.receive("NodeOS_butlerFind")
-        local pairedClients = net.getPairedClients()
+        local pairedClients = nodeos.net.getPairedClients()
         if pairedClients[cid] then
             if turtle then
                 if butler_settings.home then
                     local data = msg.data
                     resetState()
-                    gps.getInterestingTilesBlacklist()
+                    nodeos.gps.getInterestingTilesBlacklist()
                     if not turtleUtils.hasNoSlots() then
                         butler_settings.navname = data.name
                         if data.count then
@@ -252,29 +251,29 @@ function listen_find()
                         end
                         butler_settings.status = "findingBlocks"
                         saveButler()
-                        net.respond(cid, msg.token, {
+                        nodeos.net.respond(cid, msg.token, {
                             success = true
                         })
                     else
-                        net.respond(cid, msg.token, {
+                        nodeos.net.respond(cid, msg.token, {
                             success = false,
                             message = "Inventory full!"
                         })
                     end
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = "No home set! Please set a home location with the sethome command."
                     })
                 end
             else
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = false,
                     message = "This is not a turtle!"
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this computer!"
             })
@@ -282,39 +281,39 @@ function listen_find()
     end
 end
 
-pm.createProcess(listen_find, { isService = true, title = "listen_find" })
+nodeos.createProcess(listen_find, { isService = true, title = "listen_find" })
 
 function listen_sethome()
     while true do
         local cid, msg = rednet.receive("NodeOS_setHome")
-        local pairedClients = net.getPairedClients()
+        local pairedClients = nodeos.net.getPairedClients()
         if pairedClients[cid] then
             if turtle then
-                local gpsPos = gps.getPosition(true)
+                local gpsPos = nodeos.gps.getPosition(true)
                 if gpsPos then
                     butler_settings.home = gpsPos
                     turtleUtils.replaceBlocksBehindDisabledDepth = butler_settings.home.y - 20
                     resetState()
                     butler_settings.status = "home"
                     saveButler()
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = "Home set to " .. gpsPos.x .. "," .. gpsPos.y .. "," .. gpsPos.z
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
-                        message = "No gps signal!"
+                        message = "No nodeos.gps signal!"
                     })
                 end
             else
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = false,
                     message = "This is not a turtle!"
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this computer!"
             })
@@ -322,17 +321,17 @@ function listen_sethome()
     end
 end
 
-pm.createProcess(listen_sethome, { isService = true, title = "listen_sethome" })
+nodeos.createProcess(listen_sethome, { isService = true, title = "listen_sethome" })
 
 function listen_return()
     while true do
         local cid, msg = rednet.receive("NodeOS_return")
-        local pairedClients = net.getPairedClients()
+        local pairedClients = nodeos.net.getPairedClients()
         if pairedClients[cid] then
             if turtle then
                 if butler_settings.home then
                     resetState()
-                    gps.getInterestingTilesBlacklist()
+                    nodeos.gps.getInterestingTilesBlacklist()
                     butler_settings.status = "returning"
                     local data = msg.data
                     if data.canBreakBlocks then
@@ -343,24 +342,24 @@ function listen_return()
                         end
                     end
                     saveButler()
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = "Going home... (canBreakBlocks: " .. tostring(butler_settings.canBreakBlocks) .. ")"
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = "No home set! Please set a home location with the sethome command."
                     })
                 end
             else
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = false,
                     message = "This is not a turtle!"
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this computer!"
             })
@@ -368,12 +367,12 @@ function listen_return()
     end
 end
 
-pm.createProcess(listen_return, { isService = true, title = "listen_return" })
+nodeos.createProcess(listen_return, { isService = true, title = "listen_return" })
 
 function listen_follow()
     while true do
         local cid, msg = rednet.receive("NodeOS_follow")
-        local pairedClients = net.getPairedClients()
+        local pairedClients = nodeos.net.getPairedClients()
         if pairedClients[cid] then
             if turtle then
                 if butler_settings.home then
@@ -389,25 +388,25 @@ function listen_follow()
                         end
                     end
                     saveButler()
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = "Following computer '" ..
                             cid .. "'. (canBreakBlocks: " .. tostring(butler_settings.canBreakBlocks) .. ")"
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = "No home set! Please set a home location with the sethome command."
                     })
                 end
             else
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = false,
                     message = "This is not a turtle!"
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this computer!"
             })
@@ -415,35 +414,35 @@ function listen_follow()
     end
 end
 
-pm.createProcess(listen_follow, { isService = true, title = "listen_follow" })
+nodeos.createProcess(listen_follow, { isService = true, title = "listen_follow" })
 
 function listen_toggleBreaking()
     while true do
         local cid, msg = rednet.receive("NodeOS_toggleBreaking")
-        local pairedClients = net.getPairedClients()
+        local pairedClients = nodeos.net.getPairedClients()
         if pairedClients[cid] then
             if turtle then
                 if butler_settings.home then
                     butler_settings.canBreakBlocks = not butler_settings.canBreakBlocks
                     saveButler()
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = true,
                         message = "Breaking blocks is now " .. tostring(butler_settings.canBreakBlocks) .. "."
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         success = false,
                         message = "No home set! Please set a home location with the sethome command."
                     })
                 end
             else
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     success = false,
                     message = "This is not a turtle!"
                 })
             end
         else
-            net.respond(cid, msg.token, {
+            nodeos.net.respond(cid, msg.token, {
                 success = false,
                 message = "You are not paired with this computer!"
             })
@@ -451,7 +450,7 @@ function listen_toggleBreaking()
     end
 end
 
-pm.createProcess(listen_toggleBreaking, { isService = true, title = "listen_toggleBreaking" })
+nodeos.createProcess(listen_toggleBreaking, { isService = true, title = "listen_toggleBreaking" })
 
 function resetState()
     butler_settings.status = "idle"

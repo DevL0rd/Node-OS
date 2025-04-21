@@ -1,5 +1,5 @@
 local czip = require("czip")
--- local net = require("net")
+-- local nodeos.net = require("nodeos.net")
 local ver = 0
 if not fs.exists("sys/ver.txt") then
     local file = fs.open("sys/ver.txt", "w")
@@ -11,13 +11,12 @@ else
     file.close()
 end
 
-if os.getComputerID() == sets.settings.master then
-
+if os.getComputerID() == nodeos.settings.settings.master then
     function listen_publishUpdate()
         while true do
             local senderID, msg = rednet.receive("NodeOS_publishUpdate")
-            if net.getPairedClients()[senderID] then
-                net.respond(senderID, msg.token, {
+            if nodeos.net.getPairedClients()[senderID] then
+                nodeos.net.respond(senderID, msg.token, {
                     success = true
                 })
                 local path = "etc/updater/NodeOS-" .. msg.data.ver .. ".czip"
@@ -31,7 +30,7 @@ if os.getComputerID() == sets.settings.master then
         end
     end
 
-    pm.createProcess(listen_publishUpdate, {isService=true, title="listen_publishUpdate"})
+    nodeos.createProcess(listen_publishUpdate, { isService = true, title = "listen_publishUpdate" })
 
     function listen_getUpdate()
         while true do
@@ -41,12 +40,12 @@ if os.getComputerID() == sets.settings.master then
                 local file = fs.open(path, "rb")
                 data = file.readAll()
                 file.close()
-                net.respond(senderID, msg.token, {
+                nodeos.net.respond(senderID, msg.token, {
                     success = true,
                     data = data
                 })
             else
-                net.respond(senderID, msg.token, {
+                nodeos.net.respond(senderID, msg.token, {
                     success = false,
                     data = "Update file not found!"
                 })
@@ -54,7 +53,7 @@ if os.getComputerID() == sets.settings.master then
         end
     end
 
-    pm.createProcess(listen_getUpdate, {isService=true, title="listen_getUpdate"})
+    nodeos.createProcess(listen_getUpdate, { isService = true, title = "listen_getUpdate" })
 
     function listen_getVer()
         while true do
@@ -62,30 +61,29 @@ if os.getComputerID() == sets.settings.master then
             ver = tonumber(file.readAll())
             file.close()
             local senderID, msg = rednet.receive("NodeOS_getVer")
-            net.respond(senderID, msg.token, {
+            nodeos.net.respond(senderID, msg.token, {
                 data = ver
             })
         end
     end
 
-    pm.createProcess(listen_getVer, {isService=true, title="listen_getVer"})
-
+    nodeos.createProcess(listen_getVer, { isService = true, title = "listen_getVer" })
 else
     function checkForUpdates()
         while true do
             if isPublishing then
                 return
             end
-            res = net.emit("NodeOS_getVer", nil, sets.settings.master)
+            res = nodeos.net.emit("NodeOS_getVer", nil, nodeos.settings.settings.master)
             if res then
                 local file = fs.open("sys/ver.txt", "r")
                 ver = tonumber(file.readAll())
                 file.close()
                 if res.data ~= ver then
-                    notify.push("Installing Update", "NodeOS is updating to version " .. res.data .. ".")
+                    nodeos.notifications.push("Installing Update", "NodeOS is updating to version " .. res.data .. ".")
                     print("Update available! NodeOS version is " .. res.data .. ".")
                     print("Downloading update...")
-                    res = net.emit("NodeOS_getUpdate", nil, sets.settings.master)
+                    res = nodeos.net.emit("NodeOS_getUpdate", nil, nodeos.settings.settings.master)
                     if res then
                         if res.success then
                             print("Installing update...")
@@ -105,5 +103,5 @@ else
         end
     end
 
-    pm.createProcess(checkForUpdates, {isService=true, title="checkForUpdates"})
+    nodeos.createProcess(checkForUpdates, { isService = true, title = "checkForUpdates" })
 end

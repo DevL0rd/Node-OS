@@ -1,5 +1,5 @@
 local map = require("/lib/map")
-local termUtils = require("/lib/termUtils")
+
 
 local locationsFile = "/etc/map/map_locations.cfg"
 local locations = {}
@@ -11,45 +11,45 @@ local followId = nil
 if not fs.exists("/etc/map") then
     fs.makeDir("/etc/map")
 end
--- Function to load locations from file using file.readTable
+-- Function to load locations from file using loadTable
 local function loadLocations()
     if not fs.exists(locationsFile) then
-        file.writeTable(locationsFile, {})
+        saveTable(locationsFile, {})
         locations = {}
     else
-        local loadedData = file.readTable(locationsFile)
+        local loadedData = loadTable(locationsFile)
         if type(loadedData) == "table" then
             locations = loadedData
         else
             locations = {}
-            file.writeTable(locationsFile, {})
+            saveTable(locationsFile, {})
         end
     end
 end
 
--- Function to save locations to file using file.writeTable
+-- Function to save locations to file using saveTable
 local function saveLocations()
-    file.writeTable(locationsFile, locations)
+    saveTable(locationsFile, locations)
 end
 local lastpos = nil
 local lastDeepScanPos = nil
 local debugtext = ""
 function doUpdate()
-    local currentPos = gps.getPosition()
+    local currentPos = nodeos.gps.getPosition()
     if isFindMode and currentTargetName and (not map.getTargetDistance() or map.getTargetDistance() < 5) then
-        if not lastpos or gps.getDistance(currentPos, lastpos) > 5 then
+        if not lastpos or nodeos.gps.getDistance(currentPos, lastpos) > 5 then
             lastpos = currentPos
-            local res = gps.getInterestingTiles(10, 9, currentTargetName)
+            local res = nodeos.gps.getInterestingTiles(10, 9, currentTargetName)
         end
-        local block = gps.findBlock(currentTargetName)
+        local block = nodeos.gps.findBlock(currentTargetName)
         if block then
             map.setTarget(block)
         else
             map.clearTarget()
-            if not lastDeepScanPos or gps.getDistance(currentPos, lastDeepScanPos) > 250 then
+            if not lastDeepScanPos or nodeos.gps.getDistance(currentPos, lastDeepScanPos) > 250 then
                 debugtext = "Here"
                 lastDeepScanPos = currentPos
-                local res = gps.getInterestingTiles(128, 128, currentTargetName)
+                local res = nodeos.gps.getInterestingTiles(128, 128, currentTargetName)
             end
         end
     end
@@ -58,54 +58,54 @@ end
 function drawUI()
     local w, h = term.getSize()
     map.setRenderPosition(1, 3, w, h - 2)
-    termUtils.fillLine(" ", 1, "black", "black")
-    termUtils.fillLine(" ", 2, "black", "black")
-    termUtils.alignLeft("X: " .. string.format("%.1f", map.pos.x), 1)
-    termUtils.centerText("Y: " .. string.format("%.1f", map.pos.y), 1)
-    termUtils.alignRight("Z: " .. string.format("%.1f", map.pos.z), 1)
-    local currentPos = gps.getPosition()
+    nodeos.graphics.fillLine(" ", 1, "black", "black")
+    nodeos.graphics.fillLine(" ", 2, "black", "black")
+    nodeos.graphics.alignLeft("X: " .. string.format("%.1f", map.pos.x), 1)
+    nodeos.graphics.centerText("Y: " .. string.format("%.1f", map.pos.y), 1)
+    nodeos.graphics.alignRight("Z: " .. string.format("%.1f", map.pos.z), 1)
+    local currentPos = nodeos.gps.getPosition()
     if not isFollowMode and currentPos then
         map.setPosition(currentPos.x, currentPos.y, currentPos.z)
         map.setOrientation(currentPos.d)
     end
     if isFindMode and currentTargetName and not map.getTargetDistance() then
         local targetStr = "Deep scanning, this may take a while..."
-        termUtils.centerText(targetStr, 2, "white", "black")
+        nodeos.graphics.centerText(targetStr, 2, "white", "black")
     elseif isFollowMode and followId then
-        local computer = gps.getComputer(followId)
+        local computer = nodeos.gps.getComputer(followId)
         if computer and computer.pos then
             local targetStr = computer.status
-            termUtils.centerText(targetStr, 2, "white", "black")
+            nodeos.graphics.centerText(targetStr, 2, "white", "black")
             map.setPosition(computer.pos.x, computer.pos.y, computer.pos.z)
             map.setOrientation(computer.pos.d)
             if computer.target then
                 map.setTarget(computer.target)
             end
         else
-            termUtils.centerText("Target not found", 2, "white", "black")
+            nodeos.graphics.centerText("Target not found", 2, "white", "black")
         end
     elseif currentTargetName and map.getTargetDistance() then
         local targetDistance = map.getTargetDistance()
         local targetStr = "Target: " .. currentTargetName .. " Dist: " .. string.format("%.1f", targetDistance)
-        termUtils.centerText(targetStr, 2, "white", "black")
+        nodeos.graphics.centerText(targetStr, 2, "white", "black")
     else
-        termUtils.centerText("No target set", 2, "white", "black")
+        nodeos.graphics.centerText("No target set", 2, "white", "black")
     end
-    termUtils.centerText(debugtext, 3, "red", "black")
+    nodeos.graphics.centerText(debugtext, 3, "red", "black")
 end
 
 local w, h = term.getSize()
 local args = { ... }
 loadLocations()
 function printHelp()
-    termUtils.print("Usage: map <command> <arguments>")
-    termUtils.print("Commands:")
-    termUtils.print("  help - Prints this help message.")
-    termUtils.print("  save <name> - Saves the current position with the given name.")
-    termUtils.print("  delete <name> - Deletes the saved position with the given name.")
-    termUtils.print("  find <name> - Finds the closest block with the given name.")
-    termUtils.print("  follow <-/id/name> - Sets the target to the saved position with the given name.")
-    termUtils.print("  <name> - Sets the target to the saved position with the given name.")
+    nodeos.graphics.print("Usage: map <command> <arguments>")
+    nodeos.graphics.print("Commands:")
+    nodeos.graphics.print("  help - Prints this help message.")
+    nodeos.graphics.print("  save <name> - Saves the current position with the given name.")
+    nodeos.graphics.print("  delete <name> - Deletes the saved position with the given name.")
+    nodeos.graphics.print("  find <name> - Finds the closest block with the given name.")
+    nodeos.graphics.print("  follow <-/id/name> - Sets the target to the saved position with the given name.")
+    nodeos.graphics.print("  <name> - Sets the target to the saved position with the given name.")
 end
 
 if #args > 0 then
@@ -113,7 +113,7 @@ if #args > 0 then
     local name = args[2]
     -- don't allow setting name to "help" or "delete" or navto
     if name == "help" or name == "delete" or name == "find" or name == "follow" then
-        termUtils.print("Name cannot be 'help', 'delete', 'find', or 'follow'")
+        nodeos.graphics.print("Name cannot be 'help', 'delete', 'find', or 'follow'")
         return
     end
 
@@ -121,7 +121,7 @@ if #args > 0 then
         printHelp()
         return
     elseif command == "save" and name then
-        local currentPos = gps.getPosition()
+        local currentPos = nodeos.gps.getPosition()
         if currentPos then
             locations[name] = { x = currentPos.x, y = currentPos.y, z = currentPos.z }
             saveLocations()
@@ -136,14 +136,14 @@ if #args > 0 then
     elseif command == "find" and name then
         currentTargetName = name
         isFindMode = true
-        gps.getAllInterestingTiles(name)
+        nodeos.gps.getAllInterestingTiles(name)
     elseif command == "follow" and name then
-        local cIds = gps.resolveComputersByString(args[2])
-        if not cIds then
-            termUtils.print("Computer not found!", "red")
+        local cIds = nodeos.gps.resolveComputersByString(args[2])
+        if not next(cIds) then
+            nodeos.graphics.print("Computer not found!", "red")
             return
         end
-        currentTargetName = gps.getComputerName(cIds[1]) .. "(" .. cIds[1] .. ")"
+        currentTargetName = nodeos.gps.getComputerName(cIds[1]) .. "(" .. cIds[1] .. ")"
         followId = cIds[1]
         isFollowMode = true
     elseif #args == 1 then

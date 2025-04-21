@@ -13,7 +13,7 @@ netstone.settings = {
 }
 netstone.inRangeClients = {}
 function netstone.getSettings()
-    local ns = file.readTable(netstone_settings_path)
+    local ns = loadTable(netstone_settings_path)
     if not ns then
         netstone.saveSettings(netstone.settings)
         return netstone.settings
@@ -23,7 +23,7 @@ function netstone.getSettings()
 end
 
 function netstone.saveSettings(ns)
-    file.writeTable(netstone_settings_path, ns)
+    saveTable(netstone_settings_path, ns)
 end
 
 function netstone.on()

@@ -4,31 +4,31 @@ function listen_giveLocalComputerDetails()
     while true do
         local cid, msg = rednet.receive("NodeOS_giveLocalComputerDetails")
         if msg then
-            local localComputers = gps.getLocalComputers()
+            local localComputers = nodeos.gps.getLocalComputers()
             localComputers[cid] = msg.data
         end
     end
 end
 
-pm.createProcess(listen_giveLocalComputerDetails, { isService = true, title = "listen_giveLocalComputerDetails" })
+nodeos.createProcess(listen_giveLocalComputerDetails, { isService = true, title = "listen_giveLocalComputerDetails" })
 
 function giveLocalComputerDetails_thread()
     while true do
-        local gpsPos = gps.getPosition()
+        local gpsPos = nodeos.gps.getPosition()
         if gpsPos then
             -- local inventory = nil
             -- if turtle then
             --     inventory = turtleUtils.getInventory()
             -- end
-            net.emit("NodeOS_giveLocalComputerDetails", {
+            nodeos.net.emit("NodeOS_giveLocalComputerDetails", {
                 pos = gpsPos,
                 name = os.getComputerLabel(),
                 id = os.getComputerID(),
                 isTurtle = turtle ~= nil,
-                groups = sets.settings.groups,
+                groups = nodeos.settings.settings.groups,
                 time = os.time(),
-                status = gps.status,
-                target = gps.target,
+                status = nodeos.gps.status,
+                target = nodeos.gps.target,
                 -- inventory = inventory
             })
         end
@@ -36,21 +36,21 @@ function giveLocalComputerDetails_thread()
     end
 end
 
-pm.createProcess(giveLocalComputerDetails_thread, { isService = true, title = "service_giveLocalComputerDetails" })
+nodeos.createProcess(giveLocalComputerDetails_thread, { isService = true, title = "service_giveLocalComputerDetails" })
 
 
 function listen_setOffset()
     while true do
         local cid, msg = rednet.receive("NodeOS_setOffset")
         if msg.data.pos then
-            net.respond(cid, msg.token, { success = gps.setOffset(msg.data.pos), message = "Offset set!" })
+            nodeos.net.respond(cid, msg.token, { success = nodeos.gps.setOffset(msg.data.pos), message = "Offset set!" })
         else
-            net.respond(cid, msg.token, { success = false, message = "No position provided!" })
+            nodeos.net.respond(cid, msg.token, { success = false, message = "No position provided!" })
         end
     end
 end
 
-pm.createProcess(listen_setOffset, { isService = true, title = "listen_setOffset" })
+nodeos.createProcess(listen_setOffset, { isService = true, title = "listen_setOffset" })
 
 function Set(list)
     local set = {}
@@ -58,12 +58,12 @@ function Set(list)
     return set
 end
 
-if os.getComputerID() == sets.settings.master then
+if os.getComputerID() == nodeos.settings.settings.master then
     local interestingTilesBlacklist_path = "etc/map/interestingTilesBlacklist.cfg"
     if not fs.exists(interestingTilesBlacklist_path) then
-        file.writeTable(interestingTilesBlacklist_path, {})
+        saveTable(interestingTilesBlacklist_path, {})
     else
-        interestingTilesBlacklist = file.readTable(interestingTilesBlacklist_path)
+        interestingTilesBlacklist = loadTable(interestingTilesBlacklist_path)
     end
     interestingTilesBlacklist = Set(interestingTilesBlacklist)
     local interestingTiles_path = "etc/map/interestingTiles"
@@ -135,11 +135,11 @@ if os.getComputerID() == sets.settings.master then
                 end
             end
 
-            net.respond(cid, msg.token, tmpTiles)
+            nodeos.net.respond(cid, msg.token, tmpTiles)
         end
     end
 
-    pm.createProcess(listen_getWorldTiles, { isService = true, title = "listen_getWorldTiles" })
+    nodeos.createProcess(listen_getWorldTiles, { isService = true, title = "listen_getWorldTiles" })
     -- local getBlockNameFromPartialName_cache = {}
     function getBlockNameFromPartialName(partialName)
         if interestingTiles[partialName] then
@@ -165,7 +165,7 @@ if os.getComputerID() == sets.settings.master then
             if data.all then
                 -- Handle request for all known tiles of a specific type
                 if not blockName then
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         tiles = {},
                         name = nil
                     })
@@ -183,12 +183,12 @@ if os.getComputerID() == sets.settings.master then
                             end
                         end
                     end
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         tiles = responseTiles,
                         name = blockName
                     })
                 else
-                    net.respond(cid, msg.token, {
+                    nodeos.net.respond(cid, msg.token, {
                         tiles = {},
                         name = blockName
                     })
@@ -308,7 +308,7 @@ if os.getComputerID() == sets.settings.master then
                     end
                 end
 
-                net.respond(cid, msg.token, {
+                nodeos.net.respond(cid, msg.token, {
                     tiles = tmpTiles,
                     name = blockName
                 })
@@ -316,7 +316,7 @@ if os.getComputerID() == sets.settings.master then
         end
     end
 
-    pm.createProcess(listen_getInterestingTiles, { isService = true, title = "listen_getInterestingTiles" })
+    nodeos.createProcess(listen_getInterestingTiles, { isService = true, title = "listen_getInterestingTiles" })
 
     function listen_removeInterestingTile()
         while true do
@@ -337,16 +337,16 @@ if os.getComputerID() == sets.settings.master then
         end
     end
 
-    pm.createProcess(listen_removeInterestingTile, { isService = true, title = "service_removeInterestingTile" })
+    nodeos.createProcess(listen_removeInterestingTile, { isService = true, title = "service_removeInterestingTile" })
 
     function listen_getInterestingTilesBlacklist()
         while true do
             local cid, msg = rednet.receive("NodeOS_getInterestingTilesBlacklist")
-            net.respond(cid, msg.token, interestingTilesBlacklist)
+            nodeos.net.respond(cid, msg.token, interestingTilesBlacklist)
         end
     end
 
-    pm.createProcess(listen_getInterestingTilesBlacklist, {
+    nodeos.createProcess(listen_getInterestingTilesBlacklist, {
         isService = true,
         title =
         "service_getInterestingTilesBlacklist"
@@ -383,13 +383,13 @@ if os.getComputerID() == sets.settings.master then
     end
 
     loadServerTiles()
-    pm.createProcess(saveServerTiles, { isService = true, title = "service_saveTiles" })
+    nodeos.createProcess(saveServerTiles, { isService = true, title = "service_saveTiles" })
 end
 
 
 function trimLocalComputers()
     while true do
-        local localComputers = gps.getLocalComputers()
+        local localComputers = nodeos.gps.getLocalComputers()
         for id, details in pairs(localComputers) do
             if details.time then
                 local timeDiff = os.time() - details.time
@@ -403,12 +403,12 @@ function trimLocalComputers()
                 localComputers[id] = nil
             end
         end
-        gps.saveLocalComputers(localComputers)
+        nodeos.gps.saveLocalComputers(localComputers)
         os.sleep(10)
     end
 end
 
-pm.createProcess(trimLocalComputers, { isService = true, title = "service_trimLocalComputers" })
+nodeos.createProcess(trimLocalComputers, { isService = true, title = "service_trimLocalComputers" })
 
 function getPlayerPosition(username)
     -- get player entity data which includes position
@@ -516,8 +516,8 @@ function listen_getPlayers()
     while true do
         local cid, msg = rednet.receive("NodeOS_getPlayers")
         local players = getPlayers()
-        net.respond(cid, msg.token, players)
+        nodeos.net.respond(cid, msg.token, players)
     end
 end
 
-pm.createProcess(listen_getPlayers, { isService = true, title = "listen_getPlayers" })
+nodeos.createProcess(listen_getPlayers, { isService = true, title = "listen_getPlayers" })

@@ -1,4 +1,4 @@
-local pm = _G.pm
+local nodeos = _G.nodeos
 local peripherals = {}
 local devicesConnected = {}
 local driverData = {}
@@ -31,7 +31,6 @@ function scanPeripherals()
                     peripherals[side] = { type = type, peripheral = peripheral.wrap(side) };
                     drivers[type].init(side)
                 end
-
             end
         else
             --Peripheral not found
@@ -57,5 +56,4 @@ function drivers_service()
     end
 end
 
-
-pm.createProcess(drivers_service, {isService=true, title="service_drivers"})
+nodeos.createProcess(drivers_service, { isService = true, title = "service_drivers" })

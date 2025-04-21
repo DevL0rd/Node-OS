@@ -1,5 +1,3 @@
-local termUtils = require("/lib/termUtils")
-require("/lib/misc")
 local map = {}
 map.worldTiles = {}
 map.tileGraphics = {}
@@ -10,7 +8,7 @@ map.pos = { x = 0, y = 0, z = 0 }
 map.rx, map.ry = 1, 1
 map.rw, map.rh = 50, 50
 map.targetPos = nil
-map.orientation = gps.directions.north -- 0, 1, 2, 3
+map.orientation = nodeos.gps.directions.north -- 0, 1, 2, 3
 
 function map.loadMapTiles(path)
     if not path then
@@ -18,9 +16,9 @@ function map.loadMapTiles(path)
     end
     map.tileGraphicsPath = path
     if not fs.exists(path) then
-        file.writeTable(path, map.tileGraphics)
+        saveTable(path, map.tileGraphics)
     else
-        map.tileGraphics = file.readTable(path)
+        map.tileGraphics = loadTable(path)
     end
 end
 
@@ -28,7 +26,7 @@ function map.saveTileGraphics(path)
     if not path then
         path = "/sys/map/tileGraphics.cfg"
     end
-    file.writeTable(path, map.tileGraphics)
+    saveTable(path, map.tileGraphics)
 end
 
 function map.renderTile(screenX, screenY, worldX, worldZ, startY, depth)
@@ -88,7 +86,7 @@ function map.renderTile(screenX, screenY, worldX, worldZ, startY, depth)
         end
 
         -- Render the tile with appropriate background
-        termUtils.write(
+        nodeos.graphics.write(
             map.tileGraphics[visualTile.name].char,
             screenX,
             screenY,
@@ -117,7 +115,7 @@ function map.drawLine(x1, y1, x2, y2, char, color)
         -- Check bounds before drawing
         if x1 >= map.rx and x1 < map.rx + map.rw and y1 >= map.ry and y1 < map.ry + map.rh then
             -- Use a character for the line, ensure background doesn't overwrite map
-            termUtils.write(char, x1, y1, "white", color)
+            nodeos.graphics.write(char, x1, y1, "white", color)
         end
 
         if x1 == x2 and y1 == y2 then break end
@@ -135,13 +133,13 @@ end
 
 -- Rotates coordinates based on orientation
 function map.rotateCoordinates(x, z, orientation)
-    if orientation == gps.directions.north then
+    if orientation == nodeos.gps.directions.north then
         return x, z   -- No rotation
-    elseif orientation == gps.directions.east then
+    elseif orientation == nodeos.gps.directions.east then
         return -z, x  -- 90° clockwise
-    elseif orientation == gps.directions.south then
+    elseif orientation == nodeos.gps.directions.south then
         return -x, -z -- 180°
-    elseif orientation == gps.directions.west then
+    elseif orientation == nodeos.gps.directions.west then
         return z, -x  -- 270° clockwise
     end
     return x, z       -- Default if orientation is invalid
@@ -160,7 +158,7 @@ function map.render()
     -- Calculate the size of half the map
     local halfWidth = math.ceil(map.rw / 2)
     local halfHeight = math.ceil(map.rh / 2)
-    local isUnderSomething = gps.isUnderSomething(map.pos)
+    local isUnderSomething = nodeos.gps.isUnderSomething(map.pos)
     local mapDepth = isUnderSomething and 1 or map.worldRenderDepth
     local yOffset = isUnderSomething and 0 or 25
     while cx <= mx do
@@ -178,9 +176,9 @@ function map.render()
             local worldZ = mapCenterZWorld + worldOffsetZ
             if not map.renderTile(cx, cy, worldX, worldZ, map.pos.y + yOffset, mapDepth) then
                 if isEven(cx + cy) then
-                    termUtils.write(" ", cx, cy, "black", "black")
+                    nodeos.graphics.write(" ", cx, cy, "black", "black")
                 else
-                    termUtils.write(" ", cx, cy, "gray", "gray")
+                    nodeos.graphics.write(" ", cx, cy, "gray", "gray")
                 end
             end
             cy = cy + 1
@@ -201,7 +199,7 @@ function map.render()
         local rotatedDeltaX, rotatedDeltaZ = map.rotateCoordinates(deltaX, deltaZ, map.orientation)
         local targetScreenX, targetScreenY = 0, 0
         -- Calculate target's screen position relative to the center of the UI
-        if map.orientation == gps.directions.east or map.orientation == gps.directions.west then
+        if map.orientation == nodeos.gps.directions.east or map.orientation == nodeos.gps.directions.west then
             targetScreenX = uiCenterX - math.floor(rotatedDeltaX)
             targetScreenY = uiCenterY - math.floor(rotatedDeltaZ)
         else
@@ -219,17 +217,17 @@ function map.render()
         -- if target is on screen, replace tile with red bg white fg X
         if targetScreenX >= map.rx and targetScreenX < map.rx + map.rw and
             targetScreenY >= map.ry and targetScreenY < map.ry + map.rh then
-            termUtils.write("X", targetScreenX, targetScreenY, "white", "red")
+            nodeos.graphics.write("X", targetScreenX, targetScreenY, "white", "red")
         end
     end
 
-    termUtils.write("^", uiCenterX, uiCenterY, "white", "blue")
+    nodeos.graphics.write("^", uiCenterX, uiCenterY, "white", "blue")
 
     if map.triggerRenderUI then
         map.triggerRenderUI()
     end
 
-    termUtils.triggerPaint()
+    nodeos.graphics.endRender()
 end
 
 function map.renderThread()
@@ -247,8 +245,8 @@ function map.updateThread()
         if map.triggerUpdate then
             map.triggerUpdate()
         end
-        if not map.lastFetchPosition or not next(map.worldTiles) or gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
-            map.worldTiles = gps.getWorldTiles((map.rw / 2) + 1, 10, map.pos)
+        if not map.lastFetchPosition or not next(map.worldTiles) or nodeos.gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
+            map.worldTiles = nodeos.gps.getWorldTiles((map.rw / 2) + 1, 10, map.pos)
             map.lastFetchPosition = map.pos
         end
         os.sleep(0.5)
@@ -301,7 +299,7 @@ end
 
 function map.getTargetDistance()
     if map.targetPos then
-        return gps.getDistance(map.pos, map.targetPos)
+        return nodeos.gps.getDistance(map.pos, map.targetPos)
     end
     return nil
 end
