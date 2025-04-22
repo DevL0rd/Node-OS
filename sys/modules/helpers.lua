@@ -28,6 +28,12 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     nodeos.isPointInWindow = function(x, y, proc)
+        if proc.minimized then
+            return false
+        end
+        if proc.maximized then
+            return x >= 1 and x <= termWidth and y >= 2 and y <= termHeight - 1
+        end
         return x >= proc.x and x <= proc.x + proc.width - 1 and
             y >= proc.y and y <= proc.y + proc.height - 1
     end

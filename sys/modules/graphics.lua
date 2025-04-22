@@ -157,7 +157,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     function graphics.endRender()
-        os.queueEvent("nodeos_paint")
+        nodeos.drawProcess()
     end
 
     nodeos.graphics = graphics

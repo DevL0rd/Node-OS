@@ -55,16 +55,15 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     nodeos.handleMouseClick = function(button, x, y)
-        -- Try to select another window using the same order as the drawing code
-        if nodeos.selectedProcess.minimized or
-            not nodeos.isPointInWindow(x, y, nodeos.selectedProcess) then
-            for i, v in pairs(nodeos.processes) do
-                if i ~= not v.minimized and
-                    x >= v.x and x <= v.x + v.width - 1 and
-                    y >= v.y and y <= v.y + v.height - 1 then
-                    nodeos.selectProcess(i)
-                    break
+        -- Try to select another window using the processes_sorted list
+        -- This maintains the same drawing order as in draw.lua
+        for _, pid in ipairs(nodeos.processes_sorted) do
+            local proc = nodeos.processes[pid]
+            if proc and nodeos.isPointInWindow(x, y, proc) then
+                if proc ~= nodeos.selectedProcess then
+                    nodeos.selectProcess(pid)
                 end
+                break
             end
         end
         -- Handle resize start
@@ -135,7 +134,7 @@ function module.init(nodeos, native, termWidth, termHeight)
 
     nodeos.handleMaximizedTitlebarClick = function(x, y)
         -- Close button
-        if not nodeos.selectedProcess.disableControls and x == termWidth then
+        if not nodeos.selectedProcess.immortal and not nodeos.selectedProcess.disableControls and x == termWidth then
             nodeos.endProcess(nodeos.selectedProcessID)
             nodeos.drawProcesses()
             return
@@ -203,6 +202,22 @@ function module.init(nodeos, native, termWidth, termHeight)
     nodeos.handleKeyboardEvent = function(e, keyCode)
         if e == "key" then
             table.insert(nodeos.keysDown, keyCode)
+
+            -- Check for Ctrl+T to kill the selected process
+            if keyCode == keys.t and (nodeos.isKeyDown(keys.leftCtrl) or nodeos.isKeyDown(keys.rightCtrl)) then
+                -- Only kill if the process is not immortal
+                if nodeos.selectedProcess and not nodeos.selectedProcess.immortal then
+                    nodeos.endProcess(nodeos.selectedProcessID)
+                    nodeos.drawProcesses()
+                    return
+                end
+            end
+
+            -- Check for Ctrl+R to reboot the computer
+            if keyCode == keys.r and (nodeos.isKeyDown(keys.leftCtrl) or nodeos.isKeyDown(keys.rightCtrl)) then
+                os.reboot()
+                return
+            end
         elseif e == "key_up" and nodeos.isKeyDown(keyCode) then
             table.remove(nodeos.keysDown, nodeos.isKeyDown(keyCode))
         end
@@ -225,39 +240,14 @@ function module.init(nodeos, native, termWidth, termHeight)
                 -- Keyboard events
             elseif e[1] == "char" or string.sub(e[1], 1, 3) == "key" or e[1] == "paste" then
                 nodeos.handleKeyboardEvent(e[1], e[2])
-
-                -- System events
-            elseif e[1] == "nodeos_fancyshutdown" then
-                term.redirect(native)
-                shell.run("/sys/ui/fancyshutdown.lua", e[2])
-
-                -- Login event
-            elseif e[1] == "nodeos_login" then
-                nodeos.handleLoginEvent()
-
-                -- Paint event
-            elseif e[1] == "nodeos_paint" then
-                nodeos.drawProcess(nodeos.selectedProcess)
-
                 -- Other events
             else
-                if e[1] == "nodeos_themeupdate" then
-                    nodeos.theme = loadTable("/etc/colors.cfg")
-                end
-
                 -- Pass event to all processes
                 for _, v in pairs(nodeos.processes) do
                     term.redirect(v.window)
                     coroutine.resume(v.coroutine, table.unpack(e))
                 end
-
-                -- Redraw if needed
-                if e[1] ~= "rednet_message" and e[1] ~= "modem_message" and e[1] ~= "timer" then
-                    nodeos.drawProcesses()
-                end
             end
-
-            ::continue::
         end
     end
 end

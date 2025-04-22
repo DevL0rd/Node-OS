@@ -17,22 +17,26 @@ function module.init(nodeos, native, termWidth, termHeight)
             nodeos.selectProcess(nodeos.titlebarID)
         end
 
-        -- Draw non-selected processes first
-        for i, v in pairs(nodeos.processes) do
-            if i ~= nodeos.selectedProcessID then
-                if v.minimized then
-                    v.window.setVisible(false)
-                else
-                    nodeos.drawProcess(v)
-                end
+        -- Draw processes from the sorted list in reverse order
+        -- This ensures the most recently used process (index 1) is drawn last (on top)
+        for i = #nodeos.processes_sorted, 1, -1 do
+            local pid = nodeos.processes_sorted[i]
+            local proc = nodeos.processes[pid]
+            if proc then
+                nodeos.drawProcess(proc)
             end
         end
 
-        -- Draw selected process on top
-        nodeos.drawProcess(nodeos.selectedProcess)
+        -- Draw the titlebar (if it's not already drawn)
+        if nodeos.titlebarID ~= nodeos.selectedProcessID then
+            nodeos.drawProcess(nodeos.processes[nodeos.titlebarID])
+        end
     end
 
     nodeos.drawProcess = function(proc)
+        if not proc then
+            proc = nodeos.selectedProcess
+        end
         term.redirect(native)
 
         local x, y, width, height

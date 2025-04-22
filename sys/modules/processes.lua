@@ -8,6 +8,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     -- Process Management
     -- ===============================
     nodeos.processes = {}
+    nodeos.processes_sorted = {}
     nodeos.lastProcID = 0
     nodeos.selectedProcessID = 0
     nodeos.selectedProcess = nil
@@ -53,6 +54,18 @@ function module.init(nodeos, native, termWidth, termHeight)
             if not nodeos.selectedProcess.minimized then
                 nodeos.selectedProcess.window.setVisible(true)
                 nodeos.drawProcess(nodeos.selectedProcess)
+
+                -- Update processes_sorted list
+                -- Remove the process from its current position if it exists in the list
+                for i, v in ipairs(nodeos.processes_sorted) do
+                    if v == pid then
+                        table.remove(nodeos.processes_sorted, i)
+                        break
+                    end
+                end
+
+                -- Add the process to the top of the list
+                table.insert(nodeos.processes_sorted, 1, pid)
             end
 
             os.queueEvent("titlebar_paint")
@@ -66,10 +79,34 @@ function module.init(nodeos, native, termWidth, termHeight)
 
     nodeos.minimizeProcess = function(pid)
         nodeos.processes[pid].minimized = true
+
+        -- Remove from processes_sorted list when minimized
+        for i, v in ipairs(nodeos.processes_sorted) do
+            if v == pid then
+                table.remove(nodeos.processes_sorted, i)
+                break
+            end
+        end
     end
 
     nodeos.unminimizeProcess = function(pid)
         nodeos.processes[pid].minimized = false
+
+        -- Add to the top of processes_sorted when unminimized
+        -- First check if it's already in the list (shouldn't be, but just in case)
+        local found = false
+        for i, v in ipairs(nodeos.processes_sorted) do
+            if v == pid then
+                found = true
+                break
+            end
+        end
+
+        -- Add to top of list if not found
+        if not found then
+            table.insert(nodeos.processes_sorted, 1, pid)
+        end
+
         nodeos.selectProcess(pid)
     end
 
@@ -85,14 +122,21 @@ function module.init(nodeos, native, termWidth, termHeight)
             for id, process in pairs(nodeos.processes) do
                 if id ~= pid and id ~= nodeos.titlebarID
                     and not process.minimized
-                    and not process.isService
-                    and not process.dontShowInTitlebar then
+                    and not process.isService then
                     nextPid = id
                     break
                 end
             end
 
             nodeos.selectProcess(nextPid)
+        end
+
+        -- Remove from processes_sorted list when ending process
+        for i, v in ipairs(nodeos.processes_sorted) do
+            if v == pid then
+                table.remove(nodeos.processes_sorted, i)
+                break
+            end
         end
 
         proc.window.setVisible(false)
@@ -140,6 +184,12 @@ function module.init(nodeos, native, termWidth, termHeight)
 
         -- Store and return
         table.insert(nodeos.processes, nodeos.lastProcID, newProc)
+
+        -- Add to processes_sorted if not minimized and not a service/hidden
+        if not newProc.minimized and not newProc.isService then
+            table.insert(nodeos.processes_sorted, 1, nodeos.lastProcID)
+        end
+
         os.queueEvent("titlebar_paint")
         return nodeos.lastProcID
     end

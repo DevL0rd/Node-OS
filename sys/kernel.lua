@@ -1,6 +1,9 @@
 _G.require = require
 require("/sys/lua_extensions")
 _G.nodeos = {}
+
+local themePath = loadTable("/etc/theme.cfg").currentTheme
+nodeos.theme = loadTable(themePath)
 -- ===============================
 -- Initialization & Configuration
 -- ===============================
@@ -12,7 +15,6 @@ local moduleNames = {
   "settings",
   "graphics",
   "logging",
-  "theme",
   "helpers",
   "processes",
   "window",

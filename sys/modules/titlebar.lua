@@ -8,10 +8,10 @@ function module.init(nodeos, native, termWidth, termHeight)
         local textbox = require("/sys/modules/util/textbox")
         local scroll = require("/sys/modules/util/scrollwindow")
         local draw = require("/sys/modules/util/draw")
-        local theme = nodeos.theme
-        local search = textbox.new(3, h - 1, w - 7, nil, "Search", nil, theme.userInput.background, theme.userInput.text)
-        local searchWindow = scroll.new(2, 2, w - 3, h - 4, {}, theme.menu.background, false)
-        local pinnedWindow = scroll.new(2, 2, w - 3, h - 4, {}, theme.menu.background, true)
+        local search = textbox.new(3, h - 1, w - 7, nil, "Search", nil, nodeos.theme.userInput.background,
+            nodeos.theme.userInput.text)
+        local searchWindow = scroll.new(2, 2, w - 3, h - 4, {}, nodeos.theme.menu.background, false)
+        local pinnedWindow = scroll.new(2, 2, w - 3, h - 4, {}, nodeos.theme.menu.background, true)
         local query
         local searchResults = {}
 
@@ -48,7 +48,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
 
         local function drawUI()
-            term.setBackgroundColor(theme.menu.background)
+            term.setBackgroundColor(nodeos.theme.menu.background)
             term.clear()
             local sw = w - 3
             if not query then
@@ -58,18 +58,19 @@ function module.init(nodeos, native, termWidth, termHeight)
 
                 local pos = 1
                 pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray,
-                    theme.menu.background
+                    nodeos.theme.menu.background
                     , none))
                 pos = pos + 1
-                pinnedWindow.addElement(scroll.createElement(2, pos, "Pinned", colors.white, theme.menu.background, none))
+                pinnedWindow.addElement(scroll.createElement(2, pos, "Pinned", colors.white, nodeos.theme.menu
+                    .background, none))
                 pos = pos + 1
                 pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray,
-                    theme.menu.background
+                    nodeos.theme.menu.background
                     , none))
                 pos = pos + 1
                 for i, v in pairs(pinned) do
                     pinnedWindow.addElement(scroll.createElement(2, pos, draw.overflow(v.title, sw), colors.white,
-                        theme.menu.background, function()
+                        nodeos.theme.menu.background, function()
                             nodeos.endProcess(nodeos.menuPID)
                             nodeos.selectProcess(nodeos.createProcess(v.path, v.insettings))
                         end))
@@ -78,7 +79,7 @@ function module.init(nodeos, native, termWidth, termHeight)
 
                 pos = pos + 1
                 pinnedWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray,
-                    theme.menu.background
+                    nodeos.theme.menu.background
                     , none))
                 pos = pos + 1
                 pinnedWindow.redraw()
@@ -90,14 +91,14 @@ function module.init(nodeos, native, termWidth, termHeight)
                 if #searchResults == 0 then
                     searchWindow.addElement(scroll.createElement(
                         math.ceil(searchWindow.getWidth() / 2 - string.len("No results") / 2)
-                        , pos, "No results.", colors.gray, theme.menu.background, function() end))
+                        , pos, "No results.", colors.gray, nodeos.theme.menu.background, function() end))
                 else
                     searchWindow.addElement(scroll.createElement(1, pos, "Found " .. #searchResults .. " results",
                         colors.white,
-                        theme.menu.background, none))
+                        nodeos.theme.menu.background, none))
                     pos = pos + 1
                     searchWindow.addElement(scroll.createElement(1, pos, string.rep("\140", sw), colors.gray,
-                        theme.menu.background, none))
+                        nodeos.theme.menu.background, none))
                     pos = pos + 1
 
                     for i, v in pairs(searchResults) do
@@ -114,16 +115,17 @@ function module.init(nodeos, native, termWidth, termHeight)
 
                         searchWindow.addElement(scroll.createElement(2, pos, draw.overflow(fs.getName(v), sw),
                             colors.white,
-                            theme.menu.background, addFunction))
+                            nodeos.theme.menu.background, addFunction))
                         pos = pos + 1
                         local text = fs.getDir(v)
                         if fs.getDir(v) == "" then
                             text = "Root"
                         end
                         searchWindow.addElement(scroll.createElement(2, pos, draw.overflow(text, sw), colors.gray,
-                            theme.menu.background, addFunction))
+                            nodeos.theme.menu.background, addFunction))
                         pos = pos + 1
-                        searchWindow.addElement(scroll.createElement(2, pos, "", colors.gray, theme.menu.background,
+                        searchWindow.addElement(scroll.createElement(2, pos, "", colors.gray,
+                            nodeos.theme.menu.background,
                             function() end))
                         pos = pos + 1
                     end
@@ -137,14 +139,14 @@ function module.init(nodeos, native, termWidth, termHeight)
             term.setCursorPos(w - 2, h - 1)
             term.write("O")
             term.setCursorPos(w - 1, h - 2)
-            term.setBackgroundColor(theme.menu.background)
+            term.setBackgroundColor(nodeos.theme.menu.background)
             draw.drawBorder(w - 2, h - 1, 1, 1, colors.red)
 
             term.setCursorPos(w, h - 1)
             search.redraw()
             term.setCursorPos(w - 1, h - 2)
-            term.setBackgroundColor(theme.menu.background)
-            draw.drawBorder(3, h - 1, w - 7, 1, theme.userInput.background)
+            term.setBackgroundColor(nodeos.theme.menu.background)
+            draw.drawBorder(3, h - 1, w - 7, 1, nodeos.theme.userInput.background)
         end
 
         loadPinned()
@@ -162,8 +164,6 @@ function module.init(nodeos, native, termWidth, termHeight)
                         drawUI()
                     end
                 end
-            elseif e[1] == "nodeos_themeupdate" then
-                theme = loadTable("/etc/colors.cfg")
             end
             local found = searchWindow.checkEvents(e)
             pinnedWindow.checkEvents(e)
@@ -174,15 +174,14 @@ function module.init(nodeos, native, termWidth, termHeight)
         local w = term.getSize()
         local running = {}
         local procList
-        local theme = _G.nodeos.getTheme()
-        local nodeos = _G.nodeos
 
         local function draw()
+            term.setCursorBlink(false)
             procList = nodeos.listProcesses()
-            term.setBackgroundColor(theme.titlebar.background)
+            term.setBackgroundColor(nodeos.theme.titlebar.background)
             term.clear()
             local time = " " .. textutils.formatTime(os.time(), false)
-            term.setTextColor(theme.titlebar.text)
+            term.setTextColor(nodeos.theme.titlebar.text)
             local renderX = w - string.len(time) + 1
             term.setCursorPos(renderX, 1)
             term.write(time)
@@ -202,27 +201,27 @@ function module.init(nodeos, native, termWidth, termHeight)
             renderX = renderX - 4
             term.setCursorPos(renderX, 1)
             term.write("NET")
-            term.setTextColor(theme.menu.textSecondary)
+            term.setTextColor(nodeos.theme.menu.textSecondary)
             term.setCursorPos(1, 1)
             if nodeos.menuPID and procList[nodeos.menuPID] then
-                term.setBackgroundColor(theme.menu.buttonBG_Selected)
-                term.setTextColor(theme.menu.text)
+                term.setBackgroundColor(nodeos.theme.menu.buttonBG_Selected)
+                term.setTextColor(nodeos.theme.menu.text)
             else
-                term.setBackgroundColor(theme.menu.buttonBG)
-                term.setTextColor(theme.menu.buttonText)
+                term.setBackgroundColor(nodeos.theme.menu.buttonBG)
+                term.setTextColor(nodeos.theme.menu.buttonText)
                 nodeos.menuPID = nil
             end
             term.write(" N ")
-            term.setBackgroundColor(theme.titlebar.background)
+            term.setBackgroundColor(nodeos.theme.titlebar.background)
             term.write(" ")
             for i, v in pairs(procList) do
                 if not v.dontShowInTitlebar then
                     local x, y = term.getCursorPos()
                     v.startX = x
                     if v == nodeos.getSelectedProcess() then
-                        term.setTextColor(theme.menu.text)
+                        term.setTextColor(nodeos.theme.menu.text)
                     else
-                        term.setTextColor(theme.menu.textSecondary)
+                        term.setTextColor(nodeos.theme.menu.textSecondary)
                     end
                     local ins = v
                     term.write(v.title .. " ")
@@ -275,8 +274,6 @@ function module.init(nodeos, native, termWidth, termHeight)
                         nodeos.selectProcess(pid)
                     end
                 end
-            elseif e[1] == "nodeos_themeupdate" then
-                theme = loadTable("/etc/colors.cfg")
             elseif e[1] == "titlebar_paint" or e[1] == "clock_tick" then
                 draw()
             end
@@ -289,7 +286,19 @@ function module.init(nodeos, native, termWidth, termHeight)
         width = termWidth,
         height = 1,
         showTitlebar = false,
-        dontShowInTitlebar = true
+        dontShowInTitlebar = true,
+        immortal = true,
+    })
+
+    function clock()
+        while true do
+            os.queueEvent("clock_tick")
+            os.sleep(1)
+        end
+    end
+
+    nodeos.createProcess(clock, {
+        isService = true,
     })
 end
 
