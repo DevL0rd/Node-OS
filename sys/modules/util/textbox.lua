@@ -6,7 +6,7 @@ local function newRead(win, contents, rchar)
         win.setBackgroundColor(colors.gray)
         win.clear()
         win.setTextColor(colors.lightGray)
-        win.setCursorPos(1,1)
+        win.setCursorPos(1, 1)
         local w, h = win.getSize()
         local printstr = outstr
         if string.len(printstr) > w then
@@ -47,28 +47,28 @@ local function newTextbox(x, y, w, rchar, placeholderText, contents, bg, fg)
     local win = window.create(prevTerm, x, y, w, 1)
     if not contents then contents = "" end
     local newContent
-  
+
     local obj = {}
 
     obj.redraw = function()
         win.setBackgroundColor(bg)
         win.clear()
         win.setTextColor(fg)
-        win.setCursorPos(1,1)
+        win.setCursorPos(1, 1)
         win.write(newContent or contents)
         if contents == "" and placeholderText then
             win.write(placeholderText)
         end
     end
-    
+
     obj.select = function(clear)
         if clear == true then
             contents = ""
         end
-        win.setCursorPos(1,1)
+        win.setCursorPos(1, 1)
         contents, goToNext = newRead(win, contents, rchar)
         win.clear()
-        win.setCursorPos(1,1)
+        win.setCursorPos(1, 1)
         newContent = contents
         if rchar then
             newContent = string.rep(rchar, string.len(newContent))
@@ -83,7 +83,7 @@ local function newTextbox(x, y, w, rchar, placeholderText, contents, bg, fg)
         end
 
         obj.redraw()
-        
+
         return contents, goToNext
     end
 

@@ -1,9 +1,20 @@
 local turtleUtils = require("/lib/turtleUtils")
 local worldDepthLimit = -59
+
+-- Add initialization log for GPS service
+nodeos.logging.info("GPSService", "Initializing GPS service")
+
 function listen_giveLocalComputerDetails()
+    nodeos.logging.debug("GPSService", "Starting local computer details listener")
     while true do
-        local cid, msg = rednet.receive("NodeOS_giveLocalComputerDetails")
-        if msg then
+        local cid, msg = nodeos.net.receive("NodeOS_giveLocalComputerDetails")
+        if not msg or not msg.data then
+            nodeos.logging.error("GPSService", "Received invalid computer details from #" .. cid)
+            nodeos.net.respond(cid, msg and msg.token, {
+                success = false,
+                message = "Invalid request format"
+            })
+        else
             local localComputers = nodeos.gps.getLocalComputers()
             localComputers[cid] = msg.data
         end
@@ -13,6 +24,7 @@ end
 nodeos.createProcess(listen_giveLocalComputerDetails, { isService = true, title = "listen_giveLocalComputerDetails" })
 
 function giveLocalComputerDetails_thread()
+    nodeos.logging.debug("GPSService", "Starting local computer details broadcaster")
     while true do
         local gpsPos = nodeos.gps.getPosition()
         if gpsPos then
@@ -31,6 +43,8 @@ function giveLocalComputerDetails_thread()
                 target = nodeos.gps.target,
                 -- inventory = inventory
             })
+        else
+            nodeos.logging.warn("GPSService", "No GPS position available for broadcasting")
         end
         sleep(0.5)
     end
@@ -40,12 +54,33 @@ nodeos.createProcess(giveLocalComputerDetails_thread, { isService = true, title 
 
 
 function listen_setOffset()
+    nodeos.logging.debug("GPSService", "Starting GPS offset listener")
     while true do
-        local cid, msg = rednet.receive("NodeOS_setOffset")
-        if msg.data.pos then
-            nodeos.net.respond(cid, msg.token, { success = nodeos.gps.setOffset(msg.data.pos), message = "Offset set!" })
+        local cid, msg = nodeos.net.receive("NodeOS_setOffset")
+        -- Validate parameters
+        if not msg or not msg.data then
+            nodeos.logging.error("GPSService", "Received invalid setOffset request format from computer #" .. cid)
+            nodeos.net.respond(cid, msg and msg.token, {
+                success = false,
+                message = "Invalid request format"
+            })
+        elseif not msg.data.pos then
+            nodeos.logging.error("GPSService", "Received setOffset request with no position from computer #" .. cid)
+            nodeos.net.respond(cid, msg.token, {
+                success = false,
+                message = "No position provided"
+            })
+        elseif not msg.data.pos.x or not msg.data.pos.y or not msg.data.pos.z then
+            nodeos.logging.error("GPSService",
+                "Received setOffset request with incomplete position from computer #" .. cid)
+            nodeos.net.respond(cid, msg.token, {
+                success = false,
+                message = "Position must include x, y, and z coordinates"
+            })
         else
-            nodeos.net.respond(cid, msg.token, { success = false, message = "No position provided!" })
+            nodeos.logging.info("GPSService",
+                "Setting GPS offset to " .. msg.data.pos.x .. "," .. msg.data.pos.y .. "," .. msg.data.pos.z)
+            nodeos.net.respond(cid, msg.token, { success = nodeos.gps.setOffset(msg.data.pos), message = "Offset set!" })
         end
     end
 end
@@ -59,33 +94,69 @@ function Set(list)
 end
 
 if os.getComputerID() == nodeos.settings.settings.master then
-    local interestingTilesBlacklist_path = "etc/map/interestingTilesBlacklist.cfg"
-    if not fs.exists(interestingTilesBlacklist_path) then
-        saveTable(interestingTilesBlacklist_path, {})
+    nodeos.logging.info("GPSService", "Initializing master GPS server functionality")
+    local interestingBlocksBlacklist_path = "etc/map/interestingBlocksBlacklist.cfg"
+    if not fs.exists(interestingBlocksBlacklist_path) then
+        nodeos.logging.debug("GPSService", "Creating new interesting blocks blacklist")
+        saveTable(interestingBlocksBlacklist_path, {})
     else
-        interestingTilesBlacklist = loadTable(interestingTilesBlacklist_path)
+        nodeos.logging.debug("GPSService", "Loading existing interesting blocks blacklist")
+        interestingBlocksBlacklist = loadTable(interestingBlocksBlacklist_path)
     end
-    interestingTilesBlacklist = Set(interestingTilesBlacklist)
-    local interestingTiles_path = "etc/map/interestingTiles"
-    if not fs.exists(interestingTiles_path) then
-        fs.makeDir(interestingTiles_path)
+    interestingBlocksBlacklist = Set(interestingBlocksBlacklist)
+    local interestingBlocks_path = "etc/map/interestingBlocks"
+    if not fs.exists(interestingBlocks_path) then
+        nodeos.logging.debug("GPSService", "Creating interesting blocks directory")
+        fs.makeDir(interestingBlocks_path)
     end
-    local interestingTiles = {}
+    local interestingBlocks = {}
     -- Precompute constants for optimization
     local minecraftPrefix = "minecraft:"
     local deepslatePrefix = "minecraft:deepslate_"
     local minecraftPrefixLen = #minecraftPrefix
     local deepslatePrefixLen = #deepslatePrefix
 
-    function listen_getWorldTiles()
+    function listen_getWorldBlocks()
+        nodeos.logging.debug("GPSService", "Starting world blocks listener")
         while true do
-            local cid, msg = rednet.receive("NodeOS_getWorldTiles")
+            local cid, msg = nodeos.net.receive("NodeOS_getWorldBlocks")
+            if not msg or not msg.data then
+                nodeos.logging.error("GPSService", "Received invalid getWorldBlocks request from #" .. cid)
+                nodeos.net.respond(cid, msg and msg.token, {
+                    success = false,
+                    message = "Invalid request format"
+                })
+                goto continue
+            end
+
+            if not msg.data.pos or not msg.data.radius or not msg.data.height then
+                nodeos.logging.error("GPSService", "Missing required parameters in getWorldBlocks request from #" .. cid)
+                nodeos.net.respond(cid, msg.token, {
+                    success = false,
+                    message = "Missing required parameters: pos, radius, and height are required"
+                })
+                goto continue
+            end
+
+            if not msg.data.pos.x or not msg.data.pos.y or not msg.data.pos.z then
+                nodeos.logging.error("GPSService", "Incomplete position in getWorldBlocks request from #" .. cid)
+                nodeos.net.respond(cid, msg.token, {
+                    success = false,
+                    message = "Position must include x, y, and z coordinates"
+                })
+                goto continue
+            end
+
             local data = msg.data
+            nodeos.logging.debug("GPSService", "block req from #" .. cid)
+
+            -- Start timing
+            local startTime = os.clock()
 
             -- Clamp radius
             local radius = math.min(math.floor(data.radius), 10)
             local height_param = math.floor(math.min(data.height, 9) / 2)
-            local tmpTiles = {}
+            local tmpBlocks = {}
             local centerX = math.floor(data.pos.x)
             local centerY = math.floor(data.pos.y)
             local centerZ = math.floor(data.pos.z)
@@ -123,32 +194,46 @@ if os.getComputerID() == nodeos.settings.settings.master then
 
                             -- Lazily create nested tables only when needed
                             -- Store using the world coordinates x, y, z
-                            if not tmpTiles[x] then
-                                tmpTiles[x] = {}
+                            if not tmpBlocks[x] then
+                                tmpBlocks[x] = {}
                             end
-                            if not tmpTiles[x][y] then
-                                tmpTiles[x][y] = {}
+                            if not tmpBlocks[x][y] then
+                                tmpBlocks[x][y] = {}
                             end
-                            tmpTiles[x][y][z] = blockName
+                            tmpBlocks[x][y][z] = blockName
                         end
                     end
                 end
             end
 
-            nodeos.net.respond(cid, msg.token, tmpTiles)
+            local execTime = os.clock() - startTime
+            nodeos.logging.debug("GPSService", "block req completed in " .. execTime .. "s")
+            nodeos.net.respond(cid, msg.token,
+                {
+                    success = true,
+                    blocks = tmpBlocks,
+                    pos = data.pos,
+                    radius = data.radius,
+                    height = data.height
+                })
+
+            ::continue::
         end
     end
 
-    nodeos.createProcess(listen_getWorldTiles, { isService = true, title = "listen_getWorldTiles" })
+    nodeos.createProcess(listen_getWorldBlocks, { isService = true, title = "listen_getWorldBlocks" })
     -- local getBlockNameFromPartialName_cache = {}
     function getBlockNameFromPartialName(partialName)
-        if interestingTiles[partialName] then
+        if interestingBlocks[partialName] then
             return partialName
+        end
+        if not partialName then
+            return nil
         end
         -- if getBlockNameFromPartialName_cache[partialName] then
         --     return getBlockNameFromPartialName_cache[partialName]
         -- end
-        for i, v in pairs(interestingTiles) do
+        for i, v in pairs(interestingBlocks) do
             if string.find(i, partialName) then
                 -- getBlockNameFromPartialName_cache[partialName] = i
                 return i
@@ -157,44 +242,109 @@ if os.getComputerID() == nodeos.settings.settings.master then
         return nil
     end
 
-    function listen_getInterestingTiles()
+    function listen_getInterestingBlocks()
+        nodeos.logging.debug("GPSService", "Starting interesting blocks listener")
         while true do
-            local cid, msg = rednet.receive("NodeOS_getInterestingTiles")
+            local cid, msg = nodeos.net.receive("NodeOS_getInterestingBlocks")
+            if not msg or not msg.data then
+                nodeos.logging.error("GPSService", "Received invalid getInterestingBlocks request from #" .. cid)
+                nodeos.net.respond(cid, msg and msg.token, {
+                    success = false,
+                    message = "Invalid request format"
+                })
+                goto continue
+            end
+
             local data = msg.data
-            local blockName = getBlockNameFromPartialName(data.name)
+            local blockName = nil
+
+            -- Validate different request modes
             if data.all then
-                -- Handle request for all known tiles of a specific type
-                if not blockName then
+                -- All blocks mode
+                if not data.name then
+                    nodeos.logging.error("GPSService",
+                        "Missing name parameter in getInterestingBlocks all request from #" .. cid)
                     nodeos.net.respond(cid, msg.token, {
-                        tiles = {},
+                        success = false,
+                        message = "Missing name parameter for all blocks request"
+                    })
+                    goto continue
+                end
+
+                blockName = getBlockNameFromPartialName(data.name)
+            else
+                -- Radius mode
+                if not data.pos or not data.radius or not data.height or not data.name then
+                    nodeos.logging.error("GPSService",
+                        "Missing required parameters in getInterestingBlocks radius request from #" .. cid)
+                    nodeos.net.respond(cid, msg.token, {
+                        success = false,
+                        message = "Missing required parameters: pos, radius, height, and name are required"
+                    })
+                    goto continue
+                end
+
+                if not data.pos.x or not data.pos.y or not data.pos.z then
+                    nodeos.logging.error("GPSService",
+                        "Incomplete position in getInterestingBlocks request from #" .. cid)
+                    nodeos.net.respond(cid, msg.token, {
+                        success = false,
+                        message = "Position must include x, y, and z coordinates"
+                    })
+                    goto continue
+                end
+
+                blockName = getBlockNameFromPartialName(data.name)
+            end
+
+            nodeos.logging.debug("GPSService", "block req from #" .. cid .. " for " .. (blockName or "nil"))
+
+            -- Start timing
+            local startTime = os.clock()
+
+            if data.all then
+                if not blockName then
+                    nodeos.logging.error("GPSService",
+                        "No matching block name found in getInterestingBlocks all request from #" .. cid)
+                    nodeos.net.respond(cid, msg.token, {
+                        success = true,
+                        blocks = {},
                         name = nil
                     })
-                elseif interestingTiles[blockName] then
+                    goto continue
+                end
+                -- Handle request for all known blocks of a specific type
+                if interestingBlocks[blockName] then
                     -- Create a copy to avoid sending the 'changed' flag
-                    local responseTiles = {}
-                    for x, yTable in pairs(interestingTiles[blockName]) do
+                    local responseBlocks = {}
+                    for x, yTable in pairs(interestingBlocks[blockName]) do
                         if type(x) == "number" then -- Ensure we only copy coordinate data
-                            responseTiles[x] = {}
+                            responseBlocks[x] = {}
                             for y, zTable in pairs(yTable) do
-                                responseTiles[x][y] = {}
+                                responseBlocks[x][y] = {}
                                 for z, val in pairs(zTable) do
-                                    responseTiles[x][y][z] = val
+                                    responseBlocks[x][y][z] = val
                                 end
                             end
                         end
                     end
+
+                    local execTime = os.clock() - startTime
+                    nodeos.logging.debug("GPSService", "All blocks req completed in " .. execTime .. "s")
                     nodeos.net.respond(cid, msg.token, {
-                        tiles = responseTiles,
+                        success = true,
+                        blocks = responseBlocks,
                         name = blockName
                     })
                 else
                     nodeos.net.respond(cid, msg.token, {
-                        tiles = {},
+                        success = true,
+                        blocks = {},
                         name = blockName
                     })
                 end
             else
-                -- Handle request for tiles within a radius
+                -- Handle request for blocks within a radius
                 local radius = math.min(math.floor(data.radius), 10)
                 local height_param = math.floor(math.min(data.height, 9) / 2)
 
@@ -215,11 +365,10 @@ if os.getComputerID() == nodeos.settings.settings.master then
                 local height = max_y - min_y + 1 -- This is the actual height of the volume
                 local depth = max_z - min_z + 1
 
-                local tmpTiles = {} -- Tiles matching the specific request within the radius
+                local tmpBlocks = {} -- Blocks matching the specific request within the radius
 
                 -- Fetch block info for the entire volume at once
                 local allBlocks = commands.getBlockInfos(min_x, min_y, min_z, max_x, max_y, max_z)
-
 
                 -- Iterate through world coordinates like the example
                 for posY = min_y, max_y do
@@ -238,25 +387,25 @@ if os.getComputerID() == nodeos.settings.settings.master then
 
                             -- Process the block if it exists and is not air
                             if currentBlockName and currentBlockName ~= "minecraft:air" then
-                                if not interestingTilesBlacklist[currentBlockName] then
+                                if not interestingBlocksBlacklist[currentBlockName] then
                                     -- Handle deepslate prefix optimization
                                     if string.sub(currentBlockName, 1, deepslatePrefixLen) == deepslatePrefix then
                                         currentBlockName = minecraftPrefix ..
                                             string.sub(currentBlockName, deepslatePrefixLen + 1)
                                     end
 
-                                    -- Update global interestingTiles cache
-                                    if not interestingTiles[currentBlockName] then
-                                        interestingTiles[currentBlockName] = { changed = true }
+                                    -- Update global interestingBlocks cache
+                                    if not interestingBlocks[currentBlockName] then
+                                        interestingBlocks[currentBlockName] = { changed = true }
                                     end
-                                    interestingTiles[currentBlockName].changed = true
-                                    if not interestingTiles[currentBlockName][posX] then
-                                        interestingTiles[currentBlockName][posX] = {}
+                                    interestingBlocks[currentBlockName].changed = true
+                                    if not interestingBlocks[currentBlockName][posX] then
+                                        interestingBlocks[currentBlockName][posX] = {}
                                     end
-                                    if not interestingTiles[currentBlockName][posX][posY] then
-                                        interestingTiles[currentBlockName][posX][posY] = {}
+                                    if not interestingBlocks[currentBlockName][posX][posY] then
+                                        interestingBlocks[currentBlockName][posX][posY] = {}
                                     end
-                                    interestingTiles[currentBlockName][posX][posY][posZ] = 1
+                                    interestingBlocks[currentBlockName][posX][posY][posZ] = 1
 
                                     -- Determine the actual blockName if not already found (only needed if initial data.name was partial)
                                     if not blockName then
@@ -265,40 +414,40 @@ if os.getComputerID() == nodeos.settings.settings.master then
                                         end
                                     end
 
-                                    -- Add to tmpTiles if it matches the requested blockName
+                                    -- Add to tmpBlocks if it matches the requested blockName
                                     if currentBlockName == blockName then
-                                        if not tmpTiles[posX] then
-                                            tmpTiles[posX] = {}
+                                        if not tmpBlocks[posX] then
+                                            tmpBlocks[posX] = {}
                                         end
-                                        if not tmpTiles[posX][posY] then
-                                            tmpTiles[posX][posY] = {}
+                                        if not tmpBlocks[posX][posY] then
+                                            tmpBlocks[posX][posY] = {}
                                         end
-                                        tmpTiles[posX][posY][posZ] = 1
+                                        tmpBlocks[posX][posY][posZ] = 1
                                     end
                                 end
                             elseif blockName then -- Only check for air removal if we have a specific blockName we are interested in
                                 -- Current block is air (or nil), check if we need to remove it from the global cache
-                                if interestingTiles[blockName] and interestingTiles[blockName][posX] and
-                                    interestingTiles[blockName][posX][posY] and
-                                    interestingTiles[blockName][posX][posY][posZ] then
-                                    interestingTiles[blockName][posX][posY][posZ] = nil
-                                    interestingTiles[blockName].changed = true -- Mark for saving
+                                if interestingBlocks[blockName] and interestingBlocks[blockName][posX] and
+                                    interestingBlocks[blockName][posX][posY] and
+                                    interestingBlocks[blockName][posX][posY][posZ] then
+                                    interestingBlocks[blockName][posX][posY][posZ] = nil
+                                    interestingBlocks[blockName].changed = true -- Mark for saving
 
                                     -- Clean up empty nested tables
-                                    if not next(interestingTiles[blockName][posX][posY]) then
-                                        interestingTiles[blockName][posX][posY] = nil
-                                        if not next(interestingTiles[blockName][posX]) then
-                                            interestingTiles[blockName][posX] = nil
+                                    if not next(interestingBlocks[blockName][posX][posY]) then
+                                        interestingBlocks[blockName][posX][posY] = nil
+                                        if not next(interestingBlocks[blockName][posX]) then
+                                            interestingBlocks[blockName][posX] = nil
                                             -- Check if the entire block type entry is now empty (except 'changed')
                                             local isEmpty = true
-                                            for k, _ in pairs(interestingTiles[blockName]) do
+                                            for k, _ in pairs(interestingBlocks[blockName]) do
                                                 if k ~= "changed" then
                                                     isEmpty = false
                                                     break
                                                 end
                                             end
                                             if isEmpty then
-                                                interestingTiles[blockName] = nil
+                                                interestingBlocks[blockName] = nil
                                             end
                                         end
                                     end
@@ -308,58 +457,73 @@ if os.getComputerID() == nodeos.settings.settings.master then
                     end
                 end
 
+                local execTime = os.clock() - startTime
+                nodeos.logging.debug("GPSService", "Radius block req completed in " .. execTime .. "s")
                 nodeos.net.respond(cid, msg.token, {
-                    tiles = tmpTiles,
+                    success = true,
+                    blocks = tmpBlocks,
+                    pos = data.pos,
+                    radius = data.radius,
+                    height = data.height,
                     name = blockName
                 })
             end
+
+            ::continue::
         end
     end
 
-    nodeos.createProcess(listen_getInterestingTiles, { isService = true, title = "listen_getInterestingTiles" })
+    nodeos.createProcess(listen_getInterestingBlocks, { isService = true, title = "listen_getInterestingBlocks" })
 
-    function listen_removeInterestingTile()
+    function listen_removeInterestingblock()
+        nodeos.logging.debug("GPSService", "Starting remove interesting block listener")
         while true do
-            local cid, msg = rednet.receive("NodeOS_removeInterestingTile")
+            local cid, msg = nodeos.net.receive("NodeOS_removeInterestingblock")
             local data = msg.data
-            if interestingTiles[data.name] and interestingTiles[data.name][data.pos.x] and
-                interestingTiles[data.name][data.pos.x][data.pos.y] and
-                interestingTiles[data.name][data.pos.x][data.pos.y][data.pos.z] then
-                interestingTiles[data.name][data.pos.x][data.pos.y][data.pos.z] = nil
-                interestingTiles[data.name].changed = true
-                if (not next(interestingTiles[data.name][data.pos.x][data.pos.y])) then
-                    interestingTiles[data.name][data.pos.x][data.pos.y] = nil
-                    if (not next(interestingTiles[data.name][data.pos.x])) then
-                        interestingTiles[data.name][data.pos.x] = nil
+
+            nodeos.logging.debug("GPSService",
+                "Received request to remove interesting block from computer #" .. cid .. " for block: " .. data.name)
+            if interestingBlocks[data.name] and interestingBlocks[data.name][data.pos.x] and
+                interestingBlocks[data.name][data.pos.x][data.pos.y] and
+                interestingBlocks[data.name][data.pos.x][data.pos.y][data.pos.z] then
+                interestingBlocks[data.name][data.pos.x][data.pos.y][data.pos.z] = nil
+                interestingBlocks[data.name].changed = true
+                if (not next(interestingBlocks[data.name][data.pos.x][data.pos.y])) then
+                    interestingBlocks[data.name][data.pos.x][data.pos.y] = nil
+                    if (not next(interestingBlocks[data.name][data.pos.x])) then
+                        interestingBlocks[data.name][data.pos.x] = nil
                     end
                 end
             end
         end
     end
 
-    nodeos.createProcess(listen_removeInterestingTile, { isService = true, title = "service_removeInterestingTile" })
+    nodeos.createProcess(listen_removeInterestingblock, { isService = true, title = "service_removeInterestingblock" })
 
-    function listen_getInterestingTilesBlacklist()
+    function listen_getInterestingBlocksBlacklist()
+        nodeos.logging.debug("GPSService", "Starting interesting blocks blacklist listener")
         while true do
-            local cid, msg = rednet.receive("NodeOS_getInterestingTilesBlacklist")
-            nodeos.net.respond(cid, msg.token, interestingTilesBlacklist)
+            local cid, msg = nodeos.net.receive("NodeOS_getInterestingBlocksBlacklist")
+            nodeos.logging.debug("GPSService",
+                "Received request for interesting blocks blacklist from computer #" .. cid)
+            nodeos.net.respond(cid, msg.token, interestingBlocksBlacklist)
         end
     end
 
-    nodeos.createProcess(listen_getInterestingTilesBlacklist, {
+    nodeos.createProcess(listen_getInterestingBlocksBlacklist, {
         isService = true,
         title =
-        "service_getInterestingTilesBlacklist"
+        "service_getInterestingBlocksBlacklist"
     })
 
-    function saveServerTiles()
+    function saveServerBlocks()
         while true do
-            for i, v in pairs(interestingTiles) do
+            for i, v in pairs(interestingBlocks) do
                 if v.changed then
                     v.changed = false
                     -- replace : with -
                     local fileName = string.gsub(i, ":", "-")
-                    local file = fs.open(interestingTiles_path .. "/" .. fileName .. ".dat", "w")
+                    local file = fs.open(interestingBlocks_path .. "/" .. fileName .. ".dat", "w")
                     file.write(textutils.serialize(v))
                     file.close()
                 end
@@ -368,22 +532,23 @@ if os.getComputerID() == nodeos.settings.settings.master then
         end
     end
 
-    function loadServerTiles()
-        --for every .dat file in interestingTiles_path
-        for i, v in pairs(fs.list(interestingTiles_path)) do
+    function loadServerBlocks()
+        nodeos.logging.debug("GPSService", "Loading interesting blocks from disk")
+        --for every .dat file in interestingBlocks_path
+        for i, v in pairs(fs.list(interestingBlocks_path)) do
             if string.find(v, ".dat") then
-                local file = fs.open(interestingTiles_path .. "/" .. v, "r")
+                local file = fs.open(interestingBlocks_path .. "/" .. v, "r")
                 local data = textutils.unserialize(file.readAll())
                 file.close()
                 local key = string.sub(v, 1, -5)
                 key = string.gsub(key, "-", ":")
-                interestingTiles[key] = data
+                interestingBlocks[key] = data
             end
         end
     end
 
-    loadServerTiles()
-    nodeos.createProcess(saveServerTiles, { isService = true, title = "service_saveTiles" })
+    loadServerBlocks()
+    nodeos.createProcess(saveServerBlocks, { isService = true, title = "service_saveBlocks" })
 end
 
 
@@ -514,7 +679,8 @@ end
 
 function listen_getPlayers()
     while true do
-        local cid, msg = rednet.receive("NodeOS_getPlayers")
+        local cid, msg = nodeos.net.receive("NodeOS_getPlayers")
+        nodeos.logging.debug("GPSService", "Players req from #" .. cid)
         local players = getPlayers()
         nodeos.net.respond(cid, msg.token, players)
     end

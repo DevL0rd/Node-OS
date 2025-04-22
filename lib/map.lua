@@ -1,6 +1,6 @@
 local map = {}
-map.worldTiles = {}
-map.tileGraphics = {}
+map.worldBlocks = {}
+map.blockGraphics = {}
 -- Reduce render depth to be closer to the vertical fetch range (12)
 map.worldRenderDepth = 100
 map.running = true
@@ -10,53 +10,53 @@ map.rw, map.rh = 50, 50
 map.targetPos = nil
 map.orientation = nodeos.gps.directions.north -- 0, 1, 2, 3
 
-function map.loadMapTiles(path)
+function map.loadMapBlocks(path)
     if not path then
-        path = "/sys/map/tileGraphics.cfg"
+        path = "/sys/map/blockGraphics.cfg"
     end
-    map.tileGraphicsPath = path
+    map.blockGraphicsPath = path
     if not fs.exists(path) then
-        saveTable(path, map.tileGraphics)
+        saveTable(path, map.blockGraphics)
     else
-        map.tileGraphics = loadTable(path)
+        map.blockGraphics = loadTable(path)
     end
 end
 
-function map.saveTileGraphics(path)
+function map.saveblockGraphics(path)
     if not path then
-        path = "/sys/map/tileGraphics.cfg"
+        path = "/sys/map/blockGraphics.cfg"
     end
-    saveTable(path, map.tileGraphics)
+    saveTable(path, map.blockGraphics)
 end
 
-function map.renderTile(screenX, screenY, worldX, worldZ, startY, depth)
+function map.renderblock(screenX, screenY, worldX, worldZ, startY, depth)
     local success = false
     local i = 0
-    local visualTile = nil
+    local visualblock = nil
 
-    -- Find the top visible tile
+    -- Find the top visible block
     while i < depth do
         local checkY = math.floor(startY - i)
-        if map.worldTiles[worldX] and map.worldTiles[worldX][checkY] and map.worldTiles[worldX][checkY][worldZ] then
-            local tile = map.worldTiles[worldX][checkY][worldZ]
-            if not map.tileGraphics[tile.name] then
-                map.tileGraphics[tile.name] = {}
-                map.tileGraphics[tile.name].char = "?"
-                map.tileGraphics[tile.name].fgColor = "magenta"
-                map.tileGraphics[tile.name].bgColor = "black"
-                map.saveTileGraphics()
+        if map.worldBlocks[worldX] and map.worldBlocks[worldX][checkY] and map.worldBlocks[worldX][checkY][worldZ] then
+            local block = map.worldBlocks[worldX][checkY][worldZ]
+            if not map.blockGraphics[block.name] then
+                map.blockGraphics[block.name] = {}
+                map.blockGraphics[block.name].char = "?"
+                map.blockGraphics[block.name].fgColor = "magenta"
+                map.blockGraphics[block.name].bgColor = "black"
+                map.saveblockGraphics()
             end
 
-            visualTile = tile
+            visualblock = block
             success = true
             i = depth
         end
         i = i + 1
     end
 
-    -- If we found a tile, render it
-    if visualTile then
-        local bgColor = map.tileGraphics[visualTile.name].bgColor
+    -- If we found a block, render it
+    if visualblock then
+        local bgColor = map.blockGraphics[visualblock.name].bgColor
 
         -- If background is transparent, search deeper for a solid background
         if bgColor == "transparent" then
@@ -66,12 +66,12 @@ function map.renderTile(screenX, screenY, worldX, worldZ, startY, depth)
 
             while bgDepth < maxBgDepth do
                 local bgCheckY = math.floor(startY - bgDepth)
-                if map.worldTiles[worldX] and map.worldTiles[worldX][bgCheckY] and map.worldTiles[worldX][bgCheckY][worldZ] then
-                    local bgTile = map.worldTiles[worldX][bgCheckY][worldZ]
-                    local tileBgColor = map.tileGraphics[bgTile.name].bgColor
+                if map.worldBlocks[worldX] and map.worldBlocks[worldX][bgCheckY] and map.worldBlocks[worldX][bgCheckY][worldZ] then
+                    local bgblock = map.worldBlocks[worldX][bgCheckY][worldZ]
+                    local blockBgColor = map.blockGraphics[bgblock.name].bgColor
 
-                    if tileBgColor and tileBgColor ~= "transparent" then
-                        bgColor = tileBgColor
+                    if blockBgColor and blockBgColor ~= "transparent" then
+                        bgColor = blockBgColor
                         foundBg = true
                         break
                     end
@@ -85,12 +85,12 @@ function map.renderTile(screenX, screenY, worldX, worldZ, startY, depth)
             end
         end
 
-        -- Render the tile with appropriate background
+        -- Render the block with appropriate background
         nodeos.graphics.write(
-            map.tileGraphics[visualTile.name].char,
+            map.blockGraphics[visualblock.name].char,
             screenX,
             screenY,
-            map.tileGraphics[visualTile.name].fgColor,
+            map.blockGraphics[visualblock.name].fgColor,
             bgColor
         )
     end
@@ -174,7 +174,7 @@ function map.render()
             -- Calculate actual world coordinates
             local worldX = mapCenterXWorld + worldOffsetX
             local worldZ = mapCenterZWorld + worldOffsetZ
-            if not map.renderTile(cx, cy, worldX, worldZ, map.pos.y + yOffset, mapDepth) then
+            if not map.renderblock(cx, cy, worldX, worldZ, map.pos.y + yOffset, mapDepth) then
                 if isEven(cx + cy) then
                     nodeos.graphics.write(" ", cx, cy, "black", "black")
                 else
@@ -214,7 +214,7 @@ function map.render()
             lineChar = "v"
         end
         map.drawLine(uiCenterX, uiCenterY, targetScreenX, targetScreenY, lineChar, "lightBlue")
-        -- if target is on screen, replace tile with red bg white fg X
+        -- if target is on screen, replace block with red bg white fg X
         if targetScreenX >= map.rx and targetScreenX < map.rx + map.rw and
             targetScreenY >= map.ry and targetScreenY < map.ry + map.rh then
             nodeos.graphics.write("X", targetScreenX, targetScreenY, "white", "red")
@@ -245,15 +245,15 @@ function map.updateThread()
         if map.triggerUpdate then
             map.triggerUpdate()
         end
-        if not map.lastFetchPosition or not next(map.worldTiles) or nodeos.gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
-            map.worldTiles = nodeos.gps.getWorldTiles((map.rw / 2) + 1, 10, map.pos)
+        if not map.lastFetchPosition or not next(map.worldBlocks) or nodeos.gps.getDistance(map.lastFetchPosition, map.pos) > 3 then
+            map.worldBlocks = nodeos.gps.getWorldBlocks((map.rw / 2) + 1, 10, map.pos)
             map.lastFetchPosition = map.pos
         end
         os.sleep(0.5)
     end
 end
 
-function map.init(x, y, w, h, onRenderUI, onUpdate, tileGraphicsPath)
+function map.init(x, y, w, h, onRenderUI, onUpdate, blockGraphicsPath)
     if not fs.exists("etc/map") then
         fs.makeDir("etc/map")
     end
@@ -261,8 +261,8 @@ function map.init(x, y, w, h, onRenderUI, onUpdate, tileGraphicsPath)
     map.setRenderPosition(x, y, w, h)
     map.onRenderUI(onRenderUI)
     map.onUpdate(onUpdate)
-    map.loadMapTiles(tileGraphicsPath)
-    parallel.waitForAny(map.renderThread, map.updateThread)
+    map.loadMapBlocks(blockGraphicsPath)
+    nodeos.waitForAny("Map", map.renderThread, map.updateThread)
 end
 
 function map.onRenderUI(onRenderUI)
@@ -282,7 +282,7 @@ end
 
 function map.uninit()
     map.running = false
-    map.worldTiles = {}
+    map.worldBlocks = {}
 end
 
 function map.setPosition(x, y, z)

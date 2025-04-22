@@ -4,6 +4,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Processes", "Initializing process management module")
+
     -- ===============================
     -- Process Management
     -- ===============================
@@ -13,6 +15,70 @@ function module.init(nodeos, native, termWidth, termHeight)
     nodeos.selectedProcessID = 0
     nodeos.selectedProcess = nil
     nodeos.titlebarID = 1
+
+    nodeos.waitForAll = function(processName, ...)
+        local funcs = { ... }
+        local wrappedFuncs = {}
+        local errors = {}
+        local hasErrors = false
+
+        for i, func in ipairs(funcs) do
+            wrappedFuncs[i] = function()
+                local ok, err = pcall(func)
+                if not ok then
+                    nodeos.logging.fatal(processName, err)
+                    errors[i] = err
+                    hasErrors = true
+                    -- Still re-throw to end the coroutine
+                    error(err, 0)
+                end
+            end
+        end
+
+        -- Call original with wrapped functions
+        parallel.waitForAll(table.unpack(wrappedFuncs))
+
+        -- Check if any errors occurred and report them
+        if hasErrors then
+            local errorMsg = "Error(s) occurred in " .. processName .. ": "
+            for i, err in pairs(errors) do
+                errorMsg = errorMsg .. "\n" .. tostring(err)
+            end
+            error(errorMsg, 2) -- Propagate the error to the caller
+        end
+    end
+
+    nodeos.waitForAny = function(processName, ...)
+        local funcs = { ... }
+        local wrappedFuncs = {}
+        local errors = {}
+        local hasErrors = false
+
+        for i, func in ipairs(funcs) do
+            wrappedFuncs[i] = function()
+                local ok, err = pcall(func)
+                if not ok then
+                    nodeos.logging.fatal(processName, err)
+                    errors[i] = err
+                    hasErrors = true
+                end
+            end
+        end
+
+        -- Call original with wrapped functions
+        local index = parallel.waitForAny(table.unpack(wrappedFuncs))
+
+        -- Check if any errors occurred and report them
+        if hasErrors then
+            local errorMsg = "Error(s) occurred in " .. processName .. ": "
+            for i, err in pairs(errors) do
+                errorMsg = errorMsg .. "\n" .. tostring(err)
+            end
+            error(errorMsg, 2) -- Propagate the error to the caller
+        end
+
+        return index
+    end
 
     -- Window management state
     nodeos.resizeState = {
@@ -48,6 +114,8 @@ function module.init(nodeos, native, termWidth, termHeight)
 
     nodeos.selectProcess = function(pid)
         if nodeos.selectedProcessID ~= pid and nodeos.processes[pid] then
+            nodeos.logging.debug("Processes",
+                "Selecting process " .. pid .. " (" .. (nodeos.processes[pid].title or "Untitled") .. ")")
             nodeos.selectedProcessID = pid
             nodeos.selectedProcess = nodeos.processes[pid]
 
@@ -57,16 +125,17 @@ function module.init(nodeos, native, termWidth, termHeight)
 
                 -- Update processes_sorted list
                 -- Remove the process from its current position if it exists in the list
-                for i, v in ipairs(nodeos.processes_sorted) do
-                    if v == pid then
-                        table.remove(nodeos.processes_sorted, i)
-                        break
-                    end
-                end
-
-                -- Add the process to the top of the list
-                table.insert(nodeos.processes_sorted, 1, pid)
             end
+
+            -- Move selected process to top of sorted list (always on top)
+            for i, v in ipairs(nodeos.processes_sorted) do
+                if v == pid then
+                    table.remove(nodeos.processes_sorted, i)
+                    break
+                end
+            end
+            table.insert(nodeos.processes_sorted, 1, pid)
+            nodeos.drawProcesses()
 
             os.queueEvent("titlebar_paint")
         end
@@ -78,6 +147,8 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     nodeos.minimizeProcess = function(pid)
+        nodeos.logging.debug("Processes",
+            "Minimizing process " .. pid .. " (" .. (nodeos.processes[pid].title or "Untitled") .. ")")
         nodeos.processes[pid].minimized = true
 
         -- Remove from processes_sorted list when minimized
@@ -90,6 +161,8 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     nodeos.unminimizeProcess = function(pid)
+        nodeos.logging.debug("Processes",
+            "Unminimizing process " .. pid .. " (" .. (nodeos.processes[pid].title or "Untitled") .. ")")
         nodeos.processes[pid].minimized = false
 
         -- Add to the top of processes_sorted when unminimized
@@ -98,14 +171,13 @@ function module.init(nodeos, native, termWidth, termHeight)
         for i, v in ipairs(nodeos.processes_sorted) do
             if v == pid then
                 found = true
+                table.remove(nodeos.processes_sorted, i)
                 break
             end
         end
 
         -- Add to top of list if not found
-        if not found then
-            table.insert(nodeos.processes_sorted, 1, pid)
-        end
+        table.insert(nodeos.processes_sorted, 1, pid)
 
         nodeos.selectProcess(pid)
     end
@@ -113,6 +185,8 @@ function module.init(nodeos, native, termWidth, termHeight)
     nodeos.endProcess = function(pid)
         local proc = nodeos.processes[pid]
         if not proc then return end
+
+        nodeos.logging.info("Processes", "Ending process " .. pid .. " (" .. (proc.title or "Untitled") .. ")")
 
         if pid == nodeos.selectedProcessID then
             -- Find next process to focus
@@ -152,6 +226,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         -- Initialize process object
         newProc = newProc or {}
         nodeos.lastProcID = nodeos.lastProcID + 1
+        local pid = nodeos.lastProcID
 
         -- Set title
         if not newProc.title then
@@ -165,16 +240,24 @@ function module.init(nodeos, native, termWidth, termHeight)
             end
         end
 
+        nodeos.logging.info("Processes", "Creating process " .. pid .. " (" .. newProc.title .. ")")
+
         -- Configure process settings
         nodeos.configureProcessSettings(newProc, path)
 
         -- Create window and coroutine
         newProc.window = window.create(native, newProc.x, newProc.y, newProc.width, newProc.height)
         term.redirect(newProc.window)
-        newProc.coroutine = coroutine.create(nodeos.createProcessRunFunction(path))
+        newProc.coroutine = coroutine.create(nodeos.createProcessRunFunction(newProc.title, path))
 
         -- Start process
-        coroutine.resume(newProc.coroutine)
+        local ok, err = coroutine.resume(newProc.coroutine)
+        if not ok then
+            nodeos.logging.error("Processes", "Failed to start process " .. pid .. ": " .. tostring(err))
+        else
+            nodeos.logging.debug("Processes", "Process " .. pid .. " started successfully")
+        end
+
         newProc.window.redraw()
 
         -- Set as selected if first process
@@ -225,11 +308,12 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
     end
 
-    nodeos.createProcessRunFunction = function(path)
+    nodeos.createProcessRunFunction = function(processName, path)
         local newTable = table
         newTable["contains"] = nodeos.contains
 
         if type(path) == "string" then
+            nodeos.logging.debug("Processes", "Starting file-based process: " .. processName)
             return function()
                 _G.id = nodeos.lastProcID
                 _G.table = newTable
@@ -239,19 +323,66 @@ function module.init(nodeos, native, termWidth, termHeight)
                     path, nargs = path:match("(.+)%s+(.+)")
                 end
 
-                os.run({
-                    _G = _G,
-                    package = package
-                }, path, nargs)
+                -- Run the process with error handling
+                local ok, err = xpcall(function()
+                    os.run({
+                        _G = _G,
+                        package = package
+                    }, path, nargs)
+                end, function(err)
+                    nodeos.logging.fatal(processName, err)
+                    return err
+                end)
+
+                if not ok then
+                    nodeos.logging.error("Processes", "Error in process " .. processName .. ": " .. tostring(err))
+                    -- Display error message
+                    local w = term.current()
+                    w.setBackgroundColor(colors.red)
+                    w.setTextColor(colors.white)
+                    w.clear()
+                    w.setCursorPos(1, 1)
+                    print("Error in process: " .. processName)
+                    print(err)
+                    print("\nPress any key to close this window.")
+                    os.pullEvent("key")
+                else
+                    nodeos.logging.debug("Processes", "Process " .. processName .. " completed normally")
+                end
 
                 nodeos.endProcess(_G.id)
             end
         elseif type(path) == "function" then
+            nodeos.logging.debug("Processes", "Starting function-based process: " .. processName)
             return function()
                 local nodeos = nodeos
                 local id = nodeos.lastProcID
-                local table = newTable
-                path()
+
+                -- Set up error handler
+                local function errorHandler(err)
+                    nodeos.logging.fatal(processName, err)
+                    return err
+                end
+
+                -- Run the function with error handling
+                local ok, err = xpcall(path, errorHandler)
+
+                if not ok then
+                    nodeos.logging.error("Processes", "Error in process " .. processName .. ": " .. tostring(err))
+                    -- Display error message
+                    local w = term.current()
+                    w.setBackgroundColor(colors.red)
+                    w.setTextColor(colors.white)
+                    w.clear()
+                    w.setCursorPos(1, 1)
+                    print("Error in process: " .. processName)
+                    print(err)
+                    print("\nPress any key to close this window.")
+                    os.pullEvent("key")
+                else
+                    nodeos.logging.debug("Processes", "Process " .. processName .. " completed normally")
+                end
+
                 nodeos.endProcess(id)
             end
         end
@@ -302,6 +433,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         -- Update process
         nodeos.processes[pid] = newSettings
     end
+
+    nodeos.logging.info("Processes", "Process management module initialization complete")
 end
 
 return module

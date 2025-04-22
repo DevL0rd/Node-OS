@@ -19,10 +19,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         if #logging.logs > 100000 then
             table.remove(logging.logs, 1)
         end
-        local file = fs.open("/tmp/logs.txt", "a")
-        file.writeLine(("%s [%s][%s] %s"):format(os.date("%H:%M:%S"), name, level, msg))
-        file.close()
-        os.queueEvent("logging", {
+        os.queueEvent("nodeos_logging", {
             name = name,
             time = os.time(),
             level = level,
@@ -30,12 +27,26 @@ function module.init(nodeos, native, termWidth, termHeight)
         })
     end
 
+    function logging.saveLogs(name, path)
+        local logs = logging.getLogs(name)
+        local file = fs.open(path, "w")
+        if file then
+            for i, v in pairs(logs) do
+                file.writeLine(v.time .. " [" .. v.level .. "] " .. v.name .. ": " .. v.msg)
+            end
+            file.close()
+        else
+            logging.error("Logging", "Failed to open log file for writing: " .. path)
+        end
+    end
+
     function logging.warn(name, msg)
         logging.log(name, msg, "WARN")
     end
 
     function logging.error(name, msg)
-        debug.log(name, msg, "ERROR")
+        logging.log(name, msg, "ERROR")
+        logging.saveLogs(nil, "/tmp/log.txt")
     end
 
     function logging.info(name, msg)
@@ -48,12 +59,23 @@ function module.init(nodeos, native, termWidth, termHeight)
 
     function logging.fatal(name, msg)
         logging.log(name, msg, "FATAL")
+        logging.saveLogs(nil, "/tmp/log.txt")
     end
 
     function logging.getLogs(name, levels)
         local logs = {}
         for i, v in pairs(logging.logs) do
-            if v.name == name then
+            if name and v.name == name then
+                if levels then
+                    for j, k in pairs(levels) do
+                        if v.level == k then
+                            table.insert(logs, v)
+                        end
+                    end
+                else
+                    table.insert(logs, v)
+                end
+            else
                 if levels then
                     for j, k in pairs(levels) do
                         if v.level == k then
@@ -67,6 +89,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
         return logs
     end
+
+    logging.info("Logging", "Logging init.")
 
     nodeos.logging = logging
 end

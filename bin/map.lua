@@ -39,7 +39,7 @@ function doUpdate()
     if isFindMode and currentTargetName and (not map.getTargetDistance() or map.getTargetDistance() < 5) then
         if not lastpos or nodeos.gps.getDistance(currentPos, lastpos) > 5 then
             lastpos = currentPos
-            local res = nodeos.gps.getInterestingTiles(10, 9, currentTargetName)
+            local res = nodeos.gps.getInterestingBlocks(10, 9, currentTargetName)
         end
         local block = nodeos.gps.findBlock(currentTargetName)
         if block then
@@ -49,7 +49,7 @@ function doUpdate()
             if not lastDeepScanPos or nodeos.gps.getDistance(currentPos, lastDeepScanPos) > 250 then
                 debugtext = "Here"
                 lastDeepScanPos = currentPos
-                local res = nodeos.gps.getInterestingTiles(128, 128, currentTargetName)
+                local res = nodeos.gps.getInterestingBlocks(128, 128, currentTargetName)
             end
         end
     end
@@ -136,14 +136,15 @@ if #args > 0 then
     elseif command == "find" and name then
         currentTargetName = name
         isFindMode = true
-        nodeos.gps.getAllInterestingTiles(name)
+        nodeos.gps.getAllInterestingBlocks(name)
     elseif command == "follow" and name then
         local cIds = nodeos.gps.resolveComputersByString(args[2])
         if not next(cIds) then
             nodeos.graphics.print("Computer not found!", "red")
             return
         end
-        currentTargetName = nodeos.gps.getComputerName(cIds[1]) .. "(" .. cIds[1] .. ")"
+        local comname = nodeos.gps.getComputerName(cIds[1]) or "Unknown"
+        currentTargetName = comname .. "(" .. cIds[1] .. ")"
         followId = cIds[1]
         isFollowMode = true
     elseif #args == 1 then

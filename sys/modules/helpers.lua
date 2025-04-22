@@ -4,6 +4,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Helpers", "Initializing helper functions")
+
     -- Helper Functions
     nodeos.contains = function(tbl, elem)
         for _, v in pairs(tbl) do
@@ -37,6 +39,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         return x >= proc.x and x <= proc.x + proc.width - 1 and
             y >= proc.y and y <= proc.y + proc.height - 1
     end
+
+    nodeos.logging.info("Helpers", "Helper functions initialized")
 end
 
 return module

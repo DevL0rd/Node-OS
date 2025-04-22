@@ -6,6 +6,7 @@ for i = 1, #paths do
     shell.setPath(paths[i] .. ":" .. shell.path())
 end
 shell.run("cd /home")
+-- local test = 0 / somtinhsd -- test error
 local function main()
     shell.run("shell.lua")
 end
@@ -19,4 +20,4 @@ local function clear()
     term.setTextColor(colors.white)
     term.setCursorPos(7, 2)
 end
-parallel.waitForAll(main, clear)
+nodeos.waitForAll("Shell", main, clear) -- Added "Shell" as the process name

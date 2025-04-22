@@ -4,6 +4,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Events", "Initializing events module")
+
     -- ===============================
     -- Mouse Event Handling
     -- ===============================
@@ -31,6 +33,7 @@ function module.init(nodeos, native, termWidth, termHeight)
 
         -- Handle double-click on titlebar
         if isDoubleClick and nodeos.isClickOnTitleBar(x, y) then
+            nodeos.logging.debug("Events", "Double-click detected on titlebar - toggling maximize")
             nodeos.toggleMaximize()
             return
         end
@@ -104,6 +107,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         -- Close button
         if not nodeos.selectedProcess.disableControls and
             x == nodeos.selectedProcess.x + nodeos.selectedProcess.width - 1 then
+            nodeos.logging.info("Events",
+                "Close button clicked for process: " .. (nodeos.selectedProcess.title or "Untitled"))
             nodeos.endProcess(nodeos.selectedProcessID)
             nodeos.drawProcesses()
             return
@@ -112,6 +117,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         -- Minimize button
         if not nodeos.selectedProcess.disableControls and
             x == nodeos.selectedProcess.x + nodeos.selectedProcess.width - 3 then
+            nodeos.logging.debug("Events",
+                "Minimize button clicked for process: " .. (nodeos.selectedProcess.title or "Untitled"))
             nodeos.selectedProcess.minimized = true
             nodeos.drawProcesses()
             return
@@ -120,6 +127,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         -- Maximize button
         if not nodeos.selectedProcess.disableControls and
             x == nodeos.selectedProcess.x + nodeos.selectedProcess.width - 2 then
+            nodeos.logging.debug("Events",
+                "Maximize button clicked for process: " .. (nodeos.selectedProcess.title or "Untitled"))
             nodeos.selectedProcess.maximized = true
             term.redirect(nodeos.selectedProcess.window)
             coroutine.resume(nodeos.selectedProcess.coroutine, "term_resize")
@@ -128,6 +137,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
 
         -- Start window drag
+        nodeos.logging.debug("Events", "Started dragging window: " .. (nodeos.selectedProcess.title or "Untitled"))
         nodeos.mvmtX = x - nodeos.selectedProcess.x
         nodeos.drawProcesses()
     end
@@ -207,6 +217,8 @@ function module.init(nodeos, native, termWidth, termHeight)
             if keyCode == keys.t and (nodeos.isKeyDown(keys.leftCtrl) or nodeos.isKeyDown(keys.rightCtrl)) then
                 -- Only kill if the process is not immortal
                 if nodeos.selectedProcess and not nodeos.selectedProcess.immortal then
+                    nodeos.logging.info("Events",
+                        "Ctrl+T pressed - terminating process: " .. (nodeos.selectedProcess.title or "Untitled"))
                     nodeos.endProcess(nodeos.selectedProcessID)
                     nodeos.drawProcesses()
                     return
@@ -215,6 +227,7 @@ function module.init(nodeos, native, termWidth, termHeight)
 
             -- Check for Ctrl+R to reboot the computer
             if keyCode == keys.r and (nodeos.isKeyDown(keys.leftCtrl) or nodeos.isKeyDown(keys.rightCtrl)) then
+                nodeos.logging.info("Events", "Ctrl+R pressed - rebooting system")
                 os.reboot()
                 return
             end
@@ -231,6 +244,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     -- System Events
     -- ===============================
     nodeos.eventLoop = function()
+        nodeos.logging.info("Events", "Starting main event loop")
         while true do
             local e = { os.pullEventRaw() }
             -- Mouse events
@@ -250,6 +264,8 @@ function module.init(nodeos, native, termWidth, termHeight)
             end
         end
     end
+
+    nodeos.logging.info("Events", "Events module initialization complete")
 end
 
 return module

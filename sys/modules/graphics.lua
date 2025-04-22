@@ -1,6 +1,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Graphics", "Initializing graphics module")
+
     local graphics = {}
     function graphics.print(text, fgColor, bgColor)
         if not fgColor or not colors[fgColor] then
@@ -14,7 +16,15 @@ function module.init(nodeos, native, termWidth, termHeight)
         print(text)
         term.setTextColor(colors["white"])
         term.setBackgroundColor(colors["black"])
-        graphics.endRender()
+    end
+
+    function graphics.clear(color)
+        if not color or not colors[color] then
+            color = "black"
+        end
+        term.setBackgroundColor(colors[color])
+        term.clear()
+        term.setCursorPos(1, 1)
     end
 
     function graphics.write(text, x, y, fgColor, bgColor, align)
@@ -161,6 +171,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     nodeos.graphics = graphics
+    nodeos.logging.info("Graphics", "Graphics module initialization complete")
 end
 
 return module

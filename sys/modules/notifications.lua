@@ -1,6 +1,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Notifications", "Notifications module initialization started")
+    
     local notifications = {}
     notifications.title = "Welcome"
     notifications.message = "Welcome back!"
@@ -9,7 +11,9 @@ function module.init(nodeos, native, termWidth, termHeight)
     notifications.timeout = 5
     notifications.title_color = "white"
     notifications.message_color = "lightGray"
+    
     function notifications.push(title, message, title_color, message_color)
+        nodeos.logging.debug("Notifications", "Pushing notification: " .. title .. " - " .. message)
         notifications.timeout = notifications.showTime
         notifications.title = title
         notifications.message = message
@@ -29,12 +33,14 @@ function module.init(nodeos, native, termWidth, termHeight)
     nodeos.notifications = notifications
 
     function notifications_process()
+        nodeos.logging.debug("Notifications", "Starting notifications process")
         local last_state = false
         while true do
             sleep(0.5)
             if nodeos.notifications.show ~= last_state then
                 last_state = nodeos.notifications.show
                 if nodeos.notifications.show then
+                    nodeos.logging.debug("Notifications", "Showing notification: " .. nodeos.notifications.title)
                     nodeos.graphics.fillLine("-", 1, nodeos.notifications.title_color, "black")
                     nodeos.graphics.fillLine(" ", 2, "white", "black")
                     nodeos.graphics.fillLine(" ", 3, "white", "black")
@@ -47,6 +53,7 @@ function module.init(nodeos, native, termWidth, termHeight)
                         "black")
                     nodeos.unminimizeProcess(nodeos.notifyID)
                 else
+                    nodeos.logging.debug("Notifications", "Hiding notification")
                     nodeos.minimizeProcess(nodeos.notifyID)
                 end
             end
@@ -58,6 +65,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     -- Create notification service
+    nodeos.logging.debug("Notifications", "Creating notification service process")
     nodeos.notifyID = nodeos.createProcess(notifications_process, {
         x = termWidth - 18,
         y = 3,
@@ -67,6 +75,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         dontShowInTitlebar = true,
         disableControls = true
     })
+    
+    nodeos.logging.info("Notifications", "Notifications module initialization completed")
 end
 
 return module

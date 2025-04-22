@@ -1,7 +1,14 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    if nodeos.settings.settings.consoleOnly then
+        nodeos.logging.debug("Titlebar", "Console only mode, skipping titlebar module")
+        return
+    end
+    nodeos.logging.info("Titlebar", "Initializing titlebar module")
+
     function menu_ui(menuID)
+        nodeos.logging.debug("Titlebar", "Opening menu UI")
         local w, h = term.getSize()
         local pinned = {}
 
@@ -16,6 +23,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         local searchResults = {}
 
         local function searchSystem(query, depth)
+            nodeos.logging.debug("Titlebar", "Searching system for: " .. query)
             if not depth then depth = 10 end
             local found = {}
 
@@ -40,11 +48,17 @@ function module.init(nodeos, native, termWidth, termHeight)
         local function none() end
 
         local function updatePinned()
+            nodeos.logging.debug("Titlebar", "Updating pinned applications")
             saveTable("/etc/menu/pinned.cfg", pinned)
         end
 
         local function loadPinned()
+            nodeos.logging.debug("Titlebar", "Loading pinned applications")
             pinned = loadTable("/etc/menu/pinned.cfg")
+            if pinned == nil then
+                nodeos.logging.debug("Titlebar", "No pinned applications found, creating empty list")
+                pinned = {}
+            end
         end
 
         local function drawUI()
@@ -151,6 +165,7 @@ function module.init(nodeos, native, termWidth, termHeight)
 
         loadPinned()
         drawUI()
+        nodeos.logging.debug("Titlebar", "Menu UI ready")
 
         while true do
             local e = { os.pullEvent() }
@@ -160,7 +175,9 @@ function module.init(nodeos, native, termWidth, termHeight)
                     query = search.select()
                     if query == "" then query = nil end
                     if query then
+                        nodeos.logging.debug("Titlebar", "Searching for: " .. query)
                         searchResults = searchSystem(query)
+                        nodeos.logging.debug("Titlebar", "Found " .. #searchResults .. " results")
                         drawUI()
                     end
                 end
@@ -171,6 +188,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     function titlebar_ui()
+        nodeos.logging.debug("Titlebar", "Starting titlebar UI")
         local w = term.getSize()
         local running = {}
         local procList
@@ -243,9 +261,11 @@ function module.init(nodeos, native, termWidth, termHeight)
                         nodeos.menuPID = nil
                     else
                         if nodeos.menuPID ~= nil then
+                            nodeos.logging.debug("Titlebar", "Closing menu")
                             nodeos.endProcess(nodeos.menuPID)
                             nodeos.menuPID = nil
                         else
+                            nodeos.logging.debug("Titlebar", "Opening menu")
                             nodeos.menuPID = nodeos.createProcess(function() menu_ui(nodeos.menuPID) end, {
                                 x = 1,
                                 y = 2,
@@ -269,8 +289,10 @@ function module.init(nodeos, native, termWidth, termHeight)
 
                     if pid then
                         if procList[pid].minimized then
+                            nodeos.logging.debug("Titlebar", "Unminimizing process: " .. procList[pid].title)
                             nodeos.unminimizeProcess(pid)
                         end
+                        nodeos.logging.debug("Titlebar", "Selecting process: " .. procList[pid].title)
                         nodeos.selectProcess(pid)
                     end
                 end
@@ -280,6 +302,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
     end
 
+    nodeos.logging.info("Titlebar", "Creating titlebar process")
     nodeos.titlebarID = nodeos.createProcess(titlebar_ui, {
         x = 1,
         y = 1,
@@ -291,6 +314,7 @@ function module.init(nodeos, native, termWidth, termHeight)
     })
 
     function clock()
+        nodeos.logging.debug("Titlebar", "Starting clock service")
         while true do
             os.queueEvent("clock_tick")
             os.sleep(1)
@@ -300,6 +324,8 @@ function module.init(nodeos, native, termWidth, termHeight)
     nodeos.createProcess(clock, {
         isService = true,
     })
+
+    nodeos.logging.info("Titlebar", "Titlebar module initialization complete")
 end
 
 return module

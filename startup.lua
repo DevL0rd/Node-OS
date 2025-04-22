@@ -89,20 +89,29 @@ if not fs.exists("/etc/menu/pinned.cfg") then
     local file = fs.open("/etc/menu/pinned.cfg", "w")
     file.write(textutils.serialize({
         {
-            path = "sys/shell.lua",
-            title = "Shell",
-            insettings = {
-                height = 17,
-                title = "Shell",
-                width = 40,
-            },
-        },
-        {
             path = "/bin/map.lua",
             title = "Map",
             insettings = {
                 height = 17,
                 title = "Map",
+                width = 40,
+            },
+        },
+        {
+            path = "bin/logs.lua",
+            title = "Logs",
+            insettings = {
+                height = 17,
+                title = "Logs",
+                width = 40,
+            },
+        },
+        {
+            path = "sys/shell.lua",
+            title = "Shell",
+            insettings = {
+                height = 17,
+                title = "Logs",
                 width = 40,
             },
         }

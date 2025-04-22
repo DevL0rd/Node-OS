@@ -12,9 +12,9 @@ local native = term.current()
 
 -- Load modules
 local moduleNames = {
+  "logging",
   "settings",
   "graphics",
-  "logging",
   "helpers",
   "processes",
   "window",

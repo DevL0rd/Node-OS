@@ -4,6 +4,8 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("Draw", "Initializing drawing module")
+
     -- ===============================
     -- Drawing Functions
     -- ===============================
@@ -125,6 +127,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         term.setTextColor(isSelected and nodeos.theme.window.close or nodeos.theme.window.titlebar.text)
         term.write("\7")
     end
+
+    nodeos.logging.info("Draw", "Drawing module initialization complete")
 end
 
 return module

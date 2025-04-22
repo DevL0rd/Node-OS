@@ -1,21 +1,26 @@
 local module = {}
 
 function module.init(nodeos, native, termWidth, termHeight)
+    nodeos.logging.info("GPS", "Initializing GPS module")
+
     local _locate = gps.locate
     local gps = gps
-    gps.worldTiles = {}
-    gps.interestingTiles = {}
+    gps.worldBlocks = {}
+    gps.interestingBlocks = {}
     local gps_settings_path = "etc/gps/settings.cfg"
     local localComputers_path = "etc/gps/localComputers.dat"
     gps.settings = loadTable(gps_settings_path)
     gps.isConnected = false
     gps.status = "Idle"
     gps.target = nil
+
     function gps.setTarget(target)
+        nodeos.logging.debug("GPS", "Setting target to: " .. textutils.serialize(target))
         gps.target = target
     end
 
     function gps.clearTarget()
+        nodeos.logging.debug("GPS", "Clearing target")
         gps.target = nil
     end
 
@@ -264,6 +269,7 @@ function module.init(nodeos, native, termWidth, termHeight)
                     failedgpscount = 0
                     oldPos = nil
                     gps.isConnected = false
+                    nodeos.logging.warn("GPS", "GPS connection lost after multiple failed attempts")
                 end
             end
         end
@@ -291,19 +297,22 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     function gps.setOffset(pos)
+        nodeos.logging.info("GPS", "Setting position offset to " .. textutils.serialize(pos))
         local px, py, pz = _locate(5)
         if px and (not isNan(px)) then
             gps.settings.offset.x = pos.x - px
             gps.settings.offset.y = pos.y - py
             gps.settings.offset.z = pos.z - pz
             gps.saveSettings(gps.settings)
+            nodeos.logging.info("GPS", "Offset set successfully")
             return true
         else
+            nodeos.logging.error("GPS", "Failed to set offset: couldn't get current position")
             return false
         end
     end
 
-    function gps.setWorldTiles(pos, radius, height, blocks) --very optimized sync
+    function gps.setWorldBlocks(pos, radius, height, blocks) --very optimized sync
         --emulate get
         local data = {}
         data.pos = pos
@@ -347,22 +356,22 @@ function module.init(nodeos, native, termWidth, termHeight)
                         block.y = posY
                         block.z = posZ
                         block.name = blocks[posX][posY][posZ]
-                        if not gps.worldTiles[posX] then
-                            gps.worldTiles[posX] = {}
+                        if not gps.worldBlocks[posX] then
+                            gps.worldBlocks[posX] = {}
                         end
-                        if not gps.worldTiles[posX][posY] then
-                            gps.worldTiles[posX][posY] = {}
+                        if not gps.worldBlocks[posX][posY] then
+                            gps.worldBlocks[posX][posY] = {}
                         end
-                        if not gps.worldTiles[posX][posY][posZ] then
-                            gps.worldTiles[posX][posY][posZ] = {}
+                        if not gps.worldBlocks[posX][posY][posZ] then
+                            gps.worldBlocks[posX][posY][posZ] = {}
                         end
-                        gps.worldTiles[posX][posY][posZ] = block
-                    elseif gps.worldTiles[posX] and gps.worldTiles[posX][posY] and gps.worldTiles[posX][posY][posZ] then
-                        gps.worldTiles[posX][posY][posZ] = nil --shitty map compression lol
-                        if (not next(gps.worldTiles[posX][posY])) then
-                            gps.worldTiles[posX][posY] = nil
-                            if (not next(gps.worldTiles[posX])) then
-                                gps.worldTiles[posX] = nil
+                        gps.worldBlocks[posX][posY][posZ] = block
+                    elseif gps.worldBlocks[posX] and gps.worldBlocks[posX][posY] and gps.worldBlocks[posX][posY][posZ] then
+                        gps.worldBlocks[posX][posY][posZ] = nil --shitty map compression lol
+                        if (not next(gps.worldBlocks[posX][posY])) then
+                            gps.worldBlocks[posX][posY] = nil
+                            if (not next(gps.worldBlocks[posX])) then
+                                gps.worldBlocks[posX] = nil
                             end
                         end
                     end
@@ -371,7 +380,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         end
     end
 
-    function gps.setInterestingTiles(pos, radius, height, name, blocks) --very optimized sync
+    function gps.setInterestingBlocks(pos, radius, height, name, blocks) --very optimized sync
         --emulate get
         local data = {}
         data.pos = pos
@@ -409,27 +418,27 @@ function module.init(nodeos, native, termWidth, termHeight)
             for posY = my, my2 do
                 for posZ = mz, mz2 do
                     if blocks[posX] and blocks[posX][posY] and blocks[posX][posY][posZ] then
-                        if not gps.interestingTiles[name] then
-                            gps.interestingTiles[name] = {}
+                        if not gps.interestingBlocks[name] then
+                            gps.interestingBlocks[name] = {}
                         end
-                        if not gps.interestingTiles[name][posX] then
-                            gps.interestingTiles[name][posX] = {}
+                        if not gps.interestingBlocks[name][posX] then
+                            gps.interestingBlocks[name][posX] = {}
                         end
-                        if not gps.interestingTiles[name][posX][posY] then
-                            gps.interestingTiles[name][posX][posY] = {}
+                        if not gps.interestingBlocks[name][posX][posY] then
+                            gps.interestingBlocks[name][posX][posY] = {}
                         end
-                        if not gps.interestingTiles[name][posX][posY][posZ] then
-                            gps.interestingTiles[name][posX][posY][posZ] = 1
+                        if not gps.interestingBlocks[name][posX][posY][posZ] then
+                            gps.interestingBlocks[name][posX][posY][posZ] = 1
                         end
-                    elseif gps.interestingTiles[name] and gps.interestingTiles[name][posX] and
-                        gps.interestingTiles[name][posX][posY] and gps.interestingTiles[name][posX][posY][posZ] then
-                        gps.interestingTiles[name][posX][posY][posZ] = nil --shitty map compression lol
-                        if (not next(gps.interestingTiles[name][posX][posY])) then
-                            gps.interestingTiles[name][posX][posY] = nil
-                            if (not next(gps.interestingTiles[name][posX])) then
-                                gps.interestingTiles[name][posX] = nil
-                                if (not next(gps.interestingTiles[name])) then
-                                    gps.interestingTiles[name] = nil
+                    elseif gps.interestingBlocks[name] and gps.interestingBlocks[name][posX] and
+                        gps.interestingBlocks[name][posX][posY] and gps.interestingBlocks[name][posX][posY][posZ] then
+                        gps.interestingBlocks[name][posX][posY][posZ] = nil --shitty map compression lol
+                        if (not next(gps.interestingBlocks[name][posX][posY])) then
+                            gps.interestingBlocks[name][posX][posY] = nil
+                            if (not next(gps.interestingBlocks[name][posX])) then
+                                gps.interestingBlocks[name][posX] = nil
+                                if (not next(gps.interestingBlocks[name])) then
+                                    gps.interestingBlocks[name] = nil
                                 end
                             end
                         end
@@ -441,13 +450,13 @@ function module.init(nodeos, native, termWidth, termHeight)
 
     -- local getBlockNameFromPartialName_cache = {}
     function getBlockNameFromPartialName(partialName)
-        if gps.interestingTiles[partialName] then
+        if gps.interestingBlocks[partialName] then
             return partialName
         end
         -- if getBlockNameFromPartialName_cache[partialName] then
         --     return getBlockNameFromPartialName_cache[partialName]
         -- end
-        for i, v in pairs(gps.interestingTiles) do
+        for i, v in pairs(gps.interestingBlocks) do
             if string.find(i, partialName) then
                 -- getBlockNameFromPartialName_cache[partialName] = i
                 return i
@@ -457,15 +466,19 @@ function module.init(nodeos, native, termWidth, termHeight)
     end
 
     function gps.findBlock(name)
+        nodeos.logging.debug("GPS", "Searching for block: " .. name)
         local blockName = getBlockNameFromPartialName(name)
         if not blockName then
+            nodeos.logging.debug("GPS", "No matching block found for name: " .. name)
             return nil
         end
-        if not gps.interestingTiles then
+        if not gps.interestingBlocks then
+            nodeos.logging.debug("GPS", "No interesting blocks data available")
             return nil
         end
         local gpsPos = gps.getPosition()
         if not gpsPos then
+            nodeos.logging.debug("GPS", "Cannot find block: no GPS position available")
             return nil
         end
         local x = math.floor(gpsPos.x)
@@ -484,17 +497,21 @@ function module.init(nodeos, native, termWidth, termHeight)
                 y2e = -63
             end
             for x3 = x2, x2e do
-                if gps.interestingTiles[blockName][x3] then
+                if gps.interestingBlocks[blockName][x3] then
                     for y3 = y2, y2e do
-                        if gps.interestingTiles[blockName][x3][y3] then
+                        if gps.interestingBlocks[blockName][x3][y3] then
                             for z3 = z2, z2e do
                                 if x3 > x2 and x3 < x2e and y3 > y2 and y3 < y2e then -- inside on the x slice
                                     if z3 > z2 then                                   -- inside on the z slice
                                         z3 = z2e
                                     end
                                 end
-                                if gps.interestingTiles[blockName][x3][y3][z3] then
-                                    return { x = x3, y = y3, z = z3, name = blockName }
+                                if gps.interestingBlocks[blockName][x3][y3][z3] then
+                                    local result = { x = x3, y = y3, z = z3, name = blockName }
+                                    nodeos.logging.info("GPS",
+                                        "Found " .. blockName .. " at " .. result.x .. "," .. result.y .. "," .. result
+                                        .z)
+                                    return result
                                 end
                             end
                         end
@@ -502,6 +519,7 @@ function module.init(nodeos, native, termWidth, termHeight)
                 end
             end
         end
+        nodeos.logging.debug("GPS", "No " .. blockName .. " found in search radius")
         return nil
     end
 
@@ -520,8 +538,8 @@ function module.init(nodeos, native, termWidth, termHeight)
         local isUnderSomething = false
 
         for i = 1, checkHeight do
-            if gps.worldTiles[x] and gps.worldTiles[x][y + i] and gps.worldTiles[x][y + i][z] then
-                local block = gps.worldTiles[x][y + i][z]
+            if gps.worldBlocks[x] and gps.worldBlocks[x][y + i] and gps.worldBlocks[x][y + i][z] then
+                local block = gps.worldBlocks[x][y + i][z]
                 if block then
                     -- Check if block name contains glass or leaves
                     local blockName = block.name or ""
@@ -538,14 +556,16 @@ function module.init(nodeos, native, termWidth, termHeight)
         return isUnderSomething
     end
 
-    function gps.getWorldTiles(radius, height, pos)
+    function gps.getWorldBlocks(radius, height, pos)
+        nodeos.logging.debug("GPS", "Getting world blocks with radius " .. radius .. " and height " .. height)
+
         if not pos then
             pos = gps.getPosition()
         end
 
         if not pos then
-            -- Cannot proceed without a position
-            return gps.worldTiles -- Return current data, possibly empty
+            nodeos.logging.warn("GPS", "Cannot get world blocks: no position available")
+            return gps.worldBlocks
         end
 
         local maxRadius = 10
@@ -557,16 +577,16 @@ function module.init(nodeos, native, termWidth, termHeight)
 
         if radius <= maxRadius and height <= maxHeight then
             -- Request fits within limits, proceed as before
-            local blocks = nodeos.net.emit("NodeOS_getWorldTiles", { radius = radius, height = height, pos = pos },
+            local res = nodeos.net.emit("NodeOS_getWorldBlocks", { radius = radius, height = height, pos = pos },
                 nodeos.settings.settings.master)
-            if blocks then
-                gps.setWorldTiles(pos, radius, height, blocks)
+            if res and res.success then
+                gps.setWorldBlocks(pos, radius, height, res.blocks)
             end
         else
             -- Request exceeds limits, split into chunks
             local chunkRadius = maxRadius
             local chunkHeight = maxHeight
-            -- Calculate the actual scan dimensions based on how setWorldTiles interprets radius/height
+            -- Calculate the actual scan dimensions based on how setWorldBlocks interprets radius/height
             local chunkScanRadius = chunkRadius                     -- 10
             local chunkScanHalfHeight = math.floor(chunkHeight / 2) -- 4
             local chunkSpanH = chunkScanRadius * 2 + 1              -- 21 (Horizontal diameter)
@@ -593,13 +613,13 @@ function module.init(nodeos, native, termWidth, termHeight)
                         local chunkCenterZ = startZ + chunkScanRadius
                         local chunkPos = { x = chunkCenterX, y = chunkCenterY, z = chunkCenterZ }
 
-                        local blocks = nodeos.net.emit("NodeOS_getWorldTiles",
+                        local res = nodeos.net.emit("NodeOS_getWorldBlocks",
                             { radius = chunkRadius, height = chunkHeight, pos = chunkPos },
                             nodeos.settings.settings.master)
 
-                        if blocks then
-                            -- Use the chunk's center, radius, and height for setting tiles
-                            gps.setWorldTiles(chunkPos, chunkRadius, chunkHeight, blocks)
+                        if res and res.success then
+                            -- Use the chunk's center, radius, and height for setting blocks
+                            gps.setWorldBlocks(chunkPos, chunkRadius, chunkHeight, res.blocks)
                         end
                         -- Small sleep to avoid overwhelming the network or target computer
                         os.sleep(0.1)
@@ -608,17 +628,17 @@ function module.init(nodeos, native, termWidth, termHeight)
             end
         end
 
-        return gps.worldTiles
+        return gps.worldBlocks
     end
 
-    function gps.getInterestingTiles(radius, height, name, pos)
+    function gps.getInterestingBlocks(radius, height, name, pos)
         if not pos then
             pos = gps.getPosition()
         end
 
         if not pos then
             -- Cannot proceed without a position
-            return gps.interestingTiles -- Return current data, possibly empty
+            return gps.interestingBlocks -- Return current data, possibly empty
         end
 
         local maxRadius = 10
@@ -630,18 +650,18 @@ function module.init(nodeos, native, termWidth, termHeight)
         local fullName = name
         if radius <= maxRadius and height <= maxHeight then
             -- Request fits within limits, proceed as before
-            local res = nodeos.net.emit("NodeOS_getInterestingTiles",
+            local res = nodeos.net.emit("NodeOS_getInterestingBlocks",
                 { radius = radius, height = height, name = name, pos = pos },
                 nodeos.settings.settings.master)
-            if res then
-                gps.setInterestingTiles(pos, radius, height, res.name, res.tiles)
+            if res and res.success then
+                gps.setInterestingBlocks(pos, radius, height, res.name, res.blocks)
                 fullName = res.name
             end
         else
             -- Request exceeds limits, split into chunks
             local chunkRadius = maxRadius
             local chunkHeight = maxHeight
-            -- Calculate the actual scan dimensions based on how setWorldTiles interprets radius/height
+            -- Calculate the actual scan dimensions based on how setWorldBlocks interprets radius/height
             local chunkScanRadius = chunkRadius                     -- 10
             local chunkScanHalfHeight = math.floor(chunkHeight / 2) -- 4
             local chunkSpanH = chunkScanRadius * 2 + 1              -- 21 (Horizontal diameter)
@@ -668,13 +688,13 @@ function module.init(nodeos, native, termWidth, termHeight)
                         local chunkCenterZ = startZ + chunkScanRadius
                         local chunkPos = { x = chunkCenterX, y = chunkCenterY, z = chunkCenterZ }
 
-                        local res = nodeos.net.emit("NodeOS_getInterestingTiles",
+                        local res = nodeos.net.emit("NodeOS_getInterestingBlocks",
                             { radius = chunkRadius, height = chunkHeight, name = name, pos = chunkPos },
                             nodeos.settings.settings.master)
 
-                        if res then
-                            -- Use the chunk's center, radius, and height for setting tiles
-                            gps.setInterestingTiles(chunkPos, chunkRadius, chunkHeight, res.name, res.tiles)
+                        if res and res.success then
+                            -- Use the chunk's center, radius, and height for setting blocks
+                            gps.setInterestingBlocks(chunkPos, chunkRadius, chunkHeight, res.name, res.blocks)
                             fullName = res.name
                         end
 
@@ -687,83 +707,83 @@ function module.init(nodeos, native, termWidth, termHeight)
 
         return {
             name = fullName,
-            tiles = gps.interestingTiles[fullName]
+            blocks = gps.interestingBlocks[fullName]
         }
     end
 
-    function gps.getAllInterestingTiles(name)
-        local res = nodeos.net.emit("NodeOS_getInterestingTiles", { all = true, name = name },
+    function gps.getAllInterestingBlocks(name)
+        local res = nodeos.net.emit("NodeOS_getInterestingBlocks", { all = true, name = name },
             nodeos.settings.settings.master)
-        if res and res.name then
-            if not gps.interestingTiles[res.name] then
-                gps.interestingTiles[res.name] = {}
+        if res and res.success then
+            if not gps.interestingBlocks[res.name] then
+                gps.interestingBlocks[res.name] = {}
             end
-            gps.interestingTiles[res.name] = res.tiles
+            gps.interestingBlocks[res.name] = res.blocks
             return res
         end
         return nil
     end
 
-    function gps.getInterestingTilesBlacklist()
-        local res = nodeos.net.emit("NodeOS_getInterestingTilesBlacklist", {}, nodeos.settings.settings.master)
+    function gps.getInterestingBlocksBlacklist()
+        local res = nodeos.net.emit("NodeOS_getInterestingBlocksBlacklist", {}, nodeos.settings.settings.master)
         if res then
-            gps.interestingTilesBlacklist = res
-            return gps.interestingTilesBlacklist
+            gps.interestingBlocksBlacklist = res
+            return gps.interestingBlocksBlacklist
         end
         return nil
     end
 
-    function gps.removeInterestingTile(name, pos)
-        if not gps.interestingTiles[name] then
+    function gps.removeInterestingblock(name, pos)
+        if not gps.interestingBlocks[name] then
             return
         end
-        if not gps.interestingTiles[name][pos.x] then
+        if not gps.interestingBlocks[name][pos.x] then
             return
         end
-        if not gps.interestingTiles[name][pos.x][pos.y] then
+        if not gps.interestingBlocks[name][pos.x][pos.y] then
             return
         end
-        if not gps.interestingTiles[name][pos.x][pos.y][pos.z] then
+        if not gps.interestingBlocks[name][pos.x][pos.y][pos.z] then
             return
         end
-        gps.interestingTiles[name][pos.x][pos.y][pos.z] = nil
-        if (not next(gps.interestingTiles[name][pos.x][pos.y])) then
-            gps.interestingTiles[name][pos.x][pos.y] = nil
-            if (not next(gps.interestingTiles[name][pos.x])) then
-                gps.interestingTiles[name][pos.x] = nil
-                if (not next(gps.interestingTiles[name])) then
-                    gps.interestingTiles[name] = nil
+        gps.interestingBlocks[name][pos.x][pos.y][pos.z] = nil
+        if (not next(gps.interestingBlocks[name][pos.x][pos.y])) then
+            gps.interestingBlocks[name][pos.x][pos.y] = nil
+            if (not next(gps.interestingBlocks[name][pos.x])) then
+                gps.interestingBlocks[name][pos.x] = nil
+                if (not next(gps.interestingBlocks[name])) then
+                    gps.interestingBlocks[name] = nil
                 end
             end
         end
-        nodeos.net.emit("NodeOS_removeInterestingTile", {
+        nodeos.net.emit("NodeOS_removeInterestingblock", {
             name = name,
             pos = pos
         }, nodeos.settings.settings.master, true)
     end
 
-    function gps.getTilesByDistance(name)
-        if not gps.interestingTiles[name] then
+    function gps.getBlocksByDistance(name)
+        if not gps.interestingBlocks[name] then
             return nil
         end
         local gpsPos = gps.getPosition()
         if not gpsPos then
             return nil
         end
-        local tiles = {}
-        for x, v in pairs(gps.interestingTiles[name]) do
+        local blocks = {}
+        for x, v in pairs(gps.interestingBlocks[name]) do
             if x ~= "changed" then
                 for y, v2 in pairs(v) do
                     for z, v3 in pairs(v2) do
                         local pos = { x = x, y = y, z = z }
                         local distance = gps.getDistance(gpsPos, pos)
-                        table.insert(tiles, { pos = pos, distance = distance })
+                        table.insert(blocks, { pos = pos, distance = distance })
                     end
                 end
             end
         end
-        table.sort(tiles, function(a, b) return a.distance < b.distance end)
-        return tiles
+        table.sort(blocks, function(a, b) return a.distance < b.distance end)
+        return blocks
     end
 
     function gps.getComputerID(name)
@@ -784,6 +804,7 @@ function module.init(nodeos, native, termWidth, termHeight)
         return nil
     end
 
+    nodeos.logging.info("GPS", "GPS module initialization complete")
     nodeos.gps = gps
 end
 
